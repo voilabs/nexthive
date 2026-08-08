@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Capabilities for the main NextHive window. Kept deliberately minimal: the frontend only talks to explicit Rust commands.",
+  "windows": ["main"],
+  "permissions": ["core:default", "dialog:default"]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "nexthive-monorepo",
+  "private": true,
+  "scripts": {
+    "desktop:dev": "npm --prefix apps/desktop run tauri -- dev",
+    "desktop:frontend:build": "npm --prefix apps/desktop run build",
+    "desktop:build": "npm --prefix apps/desktop run tauri -- build",
+    "desktop:test": "cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml",
+    "web:dev": "bun run --cwd apps/web dev",
+    "web:build": "bun run --cwd apps/web build",
+    "web:lint": "bun run --cwd apps/web lint"
+  }
+}
