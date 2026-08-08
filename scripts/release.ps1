@@ -109,7 +109,8 @@ function Invoke-GitHubApi {
     }
 
     $jsonBody = $Body | ConvertTo-Json -Depth 8
-    return Invoke-RestMethod -Method $Method -Uri $Uri -Headers $headers -ContentType 'application/json' -Body $jsonBody
+    $utf8Body = [Text.UTF8Encoding]::new($false).GetBytes($jsonBody)
+    return Invoke-RestMethod -Method $Method -Uri $Uri -Headers $headers -ContentType 'application/json; charset=utf-8' -Body $utf8Body
 }
 
 function Publish-ReleaseAsset {
