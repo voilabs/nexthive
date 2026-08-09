@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router";
 
 import { AppShell } from "@/components/layout/AppShell";
+import { ContextMenu } from "@/components/ContextMenu";
 import { useAppNavigation } from "@/hooks/useAppNavigation";
 import { useAppUpdates } from "@/hooks/useAppUpdates";
 import { useBackupEvents } from "@/hooks/useBackupEvents";
@@ -85,8 +86,11 @@ function AppRoutes() {
 
 export default function App() {
 	return (
-		<BrowserRouter>
-			<AppRoutes />
-		</BrowserRouter>
+		<>
+			<BrowserRouter>
+				<AppRoutes />
+			</BrowserRouter>
+			<ContextMenu />
+		</>
 	);
 }

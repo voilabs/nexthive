@@ -34,6 +34,12 @@ const MAX_LOG_FILE_SIZE: u128 = 2 * 1024 * 1024;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Keep this plugin first so a second launch is intercepted before any
+        // other plugin or application state is initialized.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            log::info!("second NextHive launch detected; focusing the existing window");
+            tray::show_main_window(app);
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
