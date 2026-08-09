@@ -86,11 +86,10 @@ function AppRoutes() {
 
 export default function App() {
 	return (
-		<>
+		<ContextMenu>
 			<BrowserRouter>
 				<AppRoutes />
 			</BrowserRouter>
-			<ContextMenu />
-		</>
+		</ContextMenu>
 	);
 }
