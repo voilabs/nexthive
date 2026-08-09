@@ -15,6 +15,7 @@ pub mod git;
 pub mod github;
 pub mod integrations;
 pub mod models;
+pub mod s3_backup;
 pub mod scanner;
 pub mod scheduler;
 pub mod state;
@@ -126,6 +127,10 @@ pub fn run() {
             commands::integrations::test_integration_connection,
             commands::integrations::remove_integration_account,
             commands::integrations::get_integration_ssh_public_key,
+            commands::s3::list_s3_accounts,
+            commands::s3::add_s3_account,
+            commands::s3::test_s3_connection,
+            commands::s3::remove_s3_account,
             commands::ai::list_ai_provider_accounts,
             commands::ai::add_ai_provider_account,
             commands::ai::test_ai_provider_connection,

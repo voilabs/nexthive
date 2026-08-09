@@ -62,7 +62,7 @@ export const AI_PROVIDERS: AiProviderDefinition[] = [
 		icon: Bot,
 	},
 	{
-		id: "anthropic",
+		id: "claude",
 		name: "Anthropic Claude",
 		shortDescription: "Claude models through the Messages API",
 		detailDescription:

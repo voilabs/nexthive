@@ -12,6 +12,9 @@ export interface BackupProfile {
 	branch: string;
 	enabled: boolean;
 	integrationAccountId: number | null;
+	targetType: "git" | "s3";
+	s3AccountId: number | null;
+	s3Prefix: string | null;
 	automaticProfileRuleId: number | null;
 	automaticProfileRuleName: string | null;
 	createdAt: string;
@@ -90,11 +93,14 @@ export interface BackupSettings {
 
 export interface CreateBackupProfileInput {
 	name: string;
+	targetType?: "git" | "s3";
 	repositoryOwner?: string | null;
 	repositoryName?: string | null;
 	repositoryUrl?: string | null;
 	branch?: string | null;
 	integrationAccountId?: number | null;
+	s3AccountId?: number | null;
+	s3Prefix?: string | null;
 }
 
 /** Fields left undefined are not modified; `null` clears the field. */
@@ -107,6 +113,8 @@ export interface UpdateBackupProfileInput {
 	enabled?: boolean;
 	/** Omit = unchanged, `null` = unlink, number = link to that account. */
 	integrationAccountId?: number | null;
+	s3AccountId?: number | null;
+	s3Prefix?: string | null;
 }
 
 /** Fields left undefined are not modified; `null` disables daily backup. */
@@ -128,7 +136,8 @@ export type BackupStage =
 	| "syncing"
 	| "committing"
 	| "pushing"
-	| "uploadingLargeFiles";
+	| "uploadingLargeFiles"
+	| "uploadingS3";
 
 export interface BackupProgressEvent {
 	profileId: number;

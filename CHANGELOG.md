@@ -5,6 +5,25 @@ All notable changes to NextHive are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-08-09
+
+### Added
+
+- Added independent Amazon S3 and S3-compatible backup destinations with operating-system vault credential storage, custom endpoints, regions, buckets, prefixes and path-style addressing.
+- Added S3 support to automatic profiles, including initial backups and destination-aware reconciliation of generated profiles.
+- Added a dedicated full-page automatic-profile creation and editing flow.
+
+### Changed
+
+- Unified Git and S3 destination selection so the selected integration automatically determines which repository, branch or object-prefix settings are shown.
+- Refined the integrations catalog and destination detail views to match the application design language.
+- Improved the custom title bar so double-click maximize/restore and drag-to-restore behave like native Windows controls while keeping the pointer attached to the window.
+
+### Fixed
+
+- Fixed custom context-menu layering and hover feedback.
+- Prevented title-bar dragging from swallowing the second click of a double-click gesture.
+
 ## [0.1.1] - 2026-08-09
 
 ### Added

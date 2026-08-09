@@ -23,6 +23,9 @@ const REQUIRED_SCHEMA: &[(&str, &[&str])] = &[
             "enabled",
             "integration_account_id",
             "automatic_profile_rule_id",
+            "target_type",
+            "s3_account_id",
+            "s3_prefix",
             "archived_at",
             "created_at",
             "updated_at",
@@ -66,6 +69,10 @@ const REQUIRED_SCHEMA: &[(&str, &[&str])] = &[
         "integration_accounts",
         &["id", "provider", "auth_method", "base_url"],
     ),
+    (
+        "s3_accounts",
+        &["id", "label", "endpoint", "region", "bucket", "path_style"],
+    ),
     ("exclude_profiles", &["id", "name", "updated_at"]),
     (
         "exclude_rules",
@@ -77,7 +84,16 @@ const REQUIRED_SCHEMA: &[(&str, &[&str])] = &[
     ),
     (
         "automatic_profile_rules",
-        &["id", "name", "root_path", "enabled", "updated_at"],
+        &[
+            "id",
+            "name",
+            "root_path",
+            "enabled",
+            "target_type",
+            "s3_account_id",
+            "s3_prefix",
+            "updated_at",
+        ],
     ),
     (
         "automatic_profile_members",

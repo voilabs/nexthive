@@ -47,6 +47,7 @@ const STAGE_TEXT: Record<BackupStage, TranslationKey> = {
 	committing: "backup.stage.committing",
 	pushing: "backup.stage.pushing",
 	uploadingLargeFiles: "backup.stage.uploadingLargeFiles",
+	uploadingS3: "backup.stage.uploadingS3",
 };
 
 export function stageLabel(

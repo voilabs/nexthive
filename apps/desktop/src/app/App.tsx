@@ -9,6 +9,7 @@ import { useBackupEvents } from "@/hooks/useBackupEvents";
 import { useTheme } from "@/hooks/useTheme";
 import { useLocalization } from "@/i18n";
 import { ActivityPage } from "@/pages/ActivityPage";
+import { AutomaticProfileEditorPage } from "@/pages/AutomaticProfileEditorPage";
 import { AutomaticProfilesPage } from "@/pages/AutomaticProfilesPage";
 import { BackupsPage } from "@/pages/BackupsPage";
 import { DashboardPage } from "@/pages/DashboardPage";
@@ -17,6 +18,7 @@ import { ExcludeProfilesPage } from "@/pages/ExcludeProfilesPage";
 import { HistoryPage } from "@/pages/HistoryPage";
 import { IntegrationsPage } from "@/pages/IntegrationsPage";
 import { ProfileDetailPage } from "@/pages/ProfileDetailPage";
+import { S3IntegrationPage } from "@/pages/S3IntegrationPage";
 
 const AiIntegrationDetailPage = lazy(() =>
 	import("@/pages/AiIntegrationDetailPage").then((module) => ({
@@ -59,6 +61,8 @@ function AppRoutes() {
 					<Route index element={<DashboardPage />} />
 					<Route path="backups" element={<BackupsPage />} />
 					<Route path="automatic-profiles" element={<AutomaticProfilesPage />} />
+					<Route path="automatic-profiles/new" element={<AutomaticProfileEditorPage />} />
+					<Route path="automatic-profiles/:ruleId/edit" element={<AutomaticProfileEditorPage />} />
 					<Route path="backups/:profileId" element={<ProfileDetailPage />} />
 					<Route path="history" element={<HistoryPage />} />
 					<Route path="activity" element={<ActivityPage />} />
@@ -68,6 +72,7 @@ function AppRoutes() {
 						element={<ExcludeProfileDetailPage />}
 					/>
 					<Route path="integrations" element={<IntegrationsPage />} />
+					<Route path="integrations/s3" element={<S3IntegrationPage />} />
 					<Route
 						path="integrations/ai/:provider"
 						element={<AiIntegrationDetailPage />}

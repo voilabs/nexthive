@@ -36,6 +36,13 @@ pub fn ai_api_key(account_id: i64) -> String {
     format!("ai-provider-key-{account_id}")
 }
 
+pub fn s3_access_key_id(account_id: i64) -> String {
+    format!("s3-access-key-{account_id}")
+}
+pub fn s3_secret_access_key(account_id: i64) -> String {
+    format!("s3-secret-key-{account_id}")
+}
+
 pub trait CredentialStore: Send + Sync {
     fn save_secret(&self, key: &str, value: &str) -> AppResult<()>;
     fn get_secret(&self, key: &str) -> AppResult<Option<String>>;

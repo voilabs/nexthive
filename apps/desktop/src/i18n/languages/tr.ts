@@ -152,6 +152,7 @@ export const tr: Record<TranslationKey, string> = {
 	"backup.stage.committing": "Commit oluşturuluyor",
 	"backup.stage.pushing": "Git sağlayıcısına yükleniyor",
 	"backup.stage.uploadingLargeFiles": "Büyük dosyalar Git LFS ile yükleniyor",
+	"backup.stage.uploadingS3": "Snapshot S3'e yükleniyor",
 	"profileSettings.continuous.title": "Dosyalar değişince yedekle",
 	"profileSettings.continuous.description": "Kaynak klasörleri arka planda izle ve her gerçek değişikliği otomatik olarak commit'le.",
 	"profileSettings.continuous.stackTitle": "Değişiklik toplama süresi",
@@ -367,5 +368,20 @@ export const tr: Record<TranslationKey, string> = {
 	"createProfile.branchOptional": "(isteğe bağlı, varsayılan main)",
 	"createProfile.creatingRepo": "Repository oluşturuluyor…",
 	"createProfile.repoFailed": "Profil oluşturuldu ancak repository oluşturulamadı: {message} Profil kartından yeniden deneyebilirsiniz.",
+	"integrations.manage": "Yönet",
+	"integrations.configure": "Kur",
+	"integrations.detail.back": "Eklentiler",
+	"integrations.detail.comingNext": "Çok yakında",
+	"integrations.detail.notAvailableYet": "Henüz kullanımda değil",
+	"integrations.detail.destinationLayout": "Hedef dizin yapısı",
+	"integrations.detail.destinationLayoutDesc": "Seçilen klasörün içeriği tarihli bir hedef klasöre yazılır. Kaynak klasörünüz asla değiştirilmez.",
+	"integrations.detail.safeguards": "Gerekli güvenlik önlemleri",
+	"integrations.detail.disclaimer": "Bu sayfa gerçek bağlantı tasarımını belgeliyor. NextHive, kimlik doğrulama, aktarım, doğrulama ve yeniden deneme işlemleri tamamlanmadan bağlı bir durum veya başarılı bir yedekleme göstermeyecektir.",
+	"integrations.detail.available": "Aktif",
+	"integrations.detail.addAccount": "Hesap ekle",
+	"integrations.detail.retry": "Tekrar dene",
+	"integrations.detail.noAccountTitle": "Bağlı {name} hesabı yok",
+	"integrations.detail.noAccountDesc": "Özel depoları listelemek veya oluşturmak ve yedekleri teslim etmek için token tabanlı bir hesap bağlayın.",
+	"integrations.detail.connectAccount": "{name} bağla"
 };
 

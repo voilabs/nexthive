@@ -9,5 +9,6 @@ pub mod database;
 pub mod excludes;
 pub mod integrations;
 pub mod profiles;
+pub mod s3;
 pub mod sources;
 pub mod updater;

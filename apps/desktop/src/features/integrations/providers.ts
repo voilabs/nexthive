@@ -63,15 +63,15 @@ export const PROVIDERS: ProviderDefinition[] = [
     icon: Gitlab,
   },
   {
-    id: "gitea",
+    id: "codeberg",
     category: "git",
     status: "available",
-    name: "Gitea / Forgejo",
+    name: "Codeberg",
     shortDescription: "Self-hosted Git and Codeberg",
     detailDescription:
-      "Connect a Gitea, Forgejo or Codeberg server and keep backups in repositories you control.",
+      "Connect a Codeberg or other Gitea/Forgejo compatible server and keep backups in repositories you control.",
     defaultBaseUrl: "https://codeberg.org",
-    baseUrlLabel: "Gitea / Forgejo server",
+    baseUrlLabel: "Codeberg server",
     tokenName: "Access token",
     tokenPermissions:
       "Grant user read access and repository write access. Restrict the token to only the repositories NextHive needs when your server supports it.",
@@ -196,7 +196,7 @@ export function getProvider(provider: GitProvider): ProviderDefinition {
 }
 
 export function isGitProvider(value: string | undefined): value is GitProvider {
-  return value === "github" || value === "gitlab" || value === "gitea";
+  return value === "github" || value === "gitlab" || value === "codeberg";
 }
 
 export function isIntegrationId(

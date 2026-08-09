@@ -25,6 +25,7 @@ import { getProvider } from "@/features/integrations/providers";
 import { previewRepositoryName } from "@/features/profiles/repositoryNaming";
 import { useIntegrationsStore } from "@/stores/integrations";
 import { useProfilesStore } from "@/stores/profiles";
+import { useS3Store } from "@/stores/s3";
 import { cn } from "@/lib/utils";
 import { toAppError } from "@/types/errors";
 import type { CreateBackupProfileInput, RepositorySummary } from "@/types";
@@ -46,8 +47,14 @@ export function CreateProfileDialog({
   const createProfile = useProfilesStore((s) => s.create);
   const createRepository = useProfilesStore((s) => s.createRepository);
   const accounts = useIntegrationsStore((s) => s.accounts);
+  const s3Accounts = useS3Store((s) => s.accounts);
+  const s3Loaded = useS3Store((s) => s.loaded);
+  const loadS3 = useS3Store((s) => s.load);
 
   const [name, setName] = useState("");
+  const [targetType, setTargetType] = useState<"git" | "s3">("git");
+  const [s3AccountValue, setS3AccountValue] = useState("");
+  const [s3Prefix, setS3Prefix] = useState("nexthive");
   const [branch, setBranch] = useState("");
   const [accountValue, setAccountValue] = useState(NO_ACCOUNT);
   const [repoMode, setRepoMode] = useState<RepoMode>("auto");
@@ -70,9 +77,27 @@ export function CreateProfileDialog({
   );
   const isPat = selectedAccount?.authMethod === "pat";
   const isSsh = selectedAccount?.authMethod === "ssh";
+  const integrationValue = targetType === "s3"
+    ? (s3AccountValue ? `s3:${s3AccountValue}` : NO_ACCOUNT)
+    : (accountValue !== NO_ACCOUNT ? `git:${accountValue}` : NO_ACCOUNT);
+
+  const selectIntegration = (value: string) => {
+    if (value.startsWith("s3:")) {
+      setTargetType("s3");
+      setS3AccountValue(value.slice(3));
+      setAccountValue(NO_ACCOUNT);
+      return;
+    }
+    setTargetType("git");
+    setAccountValue(value.startsWith("git:") ? value.slice(4) : NO_ACCOUNT);
+    setS3AccountValue("");
+  };
 
   const reset = () => {
     setName("");
+    setTargetType("git");
+    setS3AccountValue("");
+    setS3Prefix("nexthive");
     setBranch("");
     setAccountValue(NO_ACCOUNT);
     setRepoMode("auto");
@@ -86,6 +111,8 @@ export function CreateProfileDialog({
     setStage("form");
     setError(null);
   };
+
+  useEffect(() => { if (open && !s3Loaded) void loadS3(); }, [open, s3Loaded, loadS3]);
 
   const handleOpenChange = (next: boolean) => {
     if (!next) reset();
@@ -131,7 +158,9 @@ export function CreateProfileDialog({
   const canSubmit =
     !submitting &&
     name.trim().length > 0 &&
-    (!isPat || repoMode === "auto" || selectedRepo !== "");
+    integrationValue !== NO_ACCOUNT &&
+    (targetType !== "s3" || s3AccountValue !== "") &&
+    (targetType !== "git" || !isPat || repoMode === "auto" || selectedRepo !== "");
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -140,8 +169,11 @@ export function CreateProfileDialog({
 
     const input: CreateBackupProfileInput = {
       name: name.trim(),
+      targetType,
       branch: branch.trim() || null,
-      integrationAccountId: selectedAccount?.id ?? null,
+      integrationAccountId: targetType === "git" ? selectedAccount?.id ?? null : null,
+      s3AccountId: targetType === "s3" ? Number(s3AccountValue) : null,
+      s3Prefix: targetType === "s3" ? s3Prefix.trim() || "nexthive" : null,
     };
     if (isPat && repoMode === "existing") {
       const repo = repos?.find((r) => r.fullName === selectedRepo);
@@ -158,7 +190,7 @@ export function CreateProfileDialog({
 
     try {
       const profile = await createProfile(input);
-      if (isPat && repoMode === "auto") {
+      if (targetType === "git" && isPat && repoMode === "auto") {
         setStage("creating-repo");
         try {
           await createRepository(profile.id);
@@ -205,31 +237,28 @@ export function CreateProfileDialog({
 
             <div className="grid gap-2">
               <Label>{t("profileRepository.account")}</Label>
-              {accounts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {t("createProfile.noAccounts")}
-                </p>
-              ) : (
-                <Select value={accountValue} onValueChange={setAccountValue}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_ACCOUNT}>
-                      {t("createProfile.noneOption")}
+              <Select value={integrationValue} onValueChange={selectIntegration}>
+                <SelectTrigger><SelectValue placeholder="Choose an integration" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_ACCOUNT}>Choose an integration</SelectItem>
+                  {accounts.map((account) => (
+                    <SelectItem key={`git:${account.id}`} value={`git:${account.id}`}>
+                      {getProvider(account.provider).name} · {account.label}
+                      {account.username ? ` (${account.username})` : ""}
+                      {account.authMethod === "ssh" ? " · SSH" : ""}
                     </SelectItem>
-                    {accounts.map((account) => (
-                      <SelectItem key={account.id} value={String(account.id)}>
-                        {getProvider(account.provider).name} · {account.label}
-                        {account.username ? ` (${account.username})` : ""}
-                        {account.authMethod === "ssh" ? " · SSH" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+                  ))}
+                  {s3Accounts.map((account) => (
+                    <SelectItem key={`s3:${account.id}`} value={`s3:${account.id}`}>
+                      S3 · {account.label} · {account.bucket}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {accounts.length === 0 && s3Accounts.length === 0 ? <p className="text-sm text-muted-foreground">Connect a Git or S3 destination under Integrations first.</p> : null}
             </div>
 
+            {targetType === "git" ? <>
             {isPat ? (
               <div className="grid gap-2">
                 <Label>{t("profileRepository.repository")}</Label>
@@ -353,6 +382,9 @@ export function CreateProfileDialog({
                 onChange={(e) => setBranch(e.target.value)}
               />
             </div>
+            </> : <>
+              <div className="grid gap-2"><Label htmlFor="s3-prefix">Object prefix</Label><Input id="s3-prefix" value={s3Prefix} onChange={(e) => setS3Prefix(e.target.value)} placeholder="nexthive" /><p className="text-xs text-muted-foreground">Snapshots are stored below this folder-like prefix.</p></div>
+            </>}
 
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
           </div>

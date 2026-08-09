@@ -6,10 +6,11 @@ use rusqlite::{params, Connection, OptionalExtension, Row};
 use crate::errors::{AppError, AppResult};
 use crate::models::{
     AutomaticProfileEntryKind, AutomaticProfileMember, AutomaticProfileMemberStatus,
-    AutomaticProfileRule, SaveAutomaticProfileRuleInput,
+    AutomaticProfileRule, BackupTargetType, SaveAutomaticProfileRuleInput,
 };
 
-const RULE_COLUMNS: &str = "id, name, root_path, enabled, integration_account_id, branch, \
+const RULE_COLUMNS: &str = "id, name, root_path, enabled, integration_account_id, target_type, \
+    s3_account_id, s3_prefix, branch, \
     exclude_profile_id, backup_time, backup_on_startup, notifications_enabled, \
     continuous_backup_enabled, change_debounce_seconds, ai_account_id, \
     ai_major_commit_messages_enabled, ai_fast_commit_messages_enabled, \
@@ -22,6 +23,10 @@ fn row_to_rule(row: &Row) -> rusqlite::Result<AutomaticProfileRule> {
         root_path: row.get("root_path")?,
         enabled: row.get::<_, i64>("enabled")? != 0,
         integration_account_id: row.get("integration_account_id")?,
+        target_type: BackupTargetType::parse(row.get::<_, String>("target_type")?.as_str())
+            .ok_or(rusqlite::Error::InvalidQuery)?,
+        s3_account_id: row.get("s3_account_id")?,
+        s3_prefix: row.get("s3_prefix")?,
         branch: row.get("branch")?,
         exclude_profile_id: row.get("exclude_profile_id")?,
         backup_time: row.get("backup_time")?,
@@ -70,8 +75,11 @@ fn validate_input(conn: &Connection, input: &SaveAutomaticProfileRuleInput) -> A
             "Automatic profile name must be between 1 and 100 characters.".into(),
         ));
     }
+    let target_type = input.target_type.unwrap_or(BackupTargetType::Git);
     let branch = input.branch.as_deref().unwrap_or("main").trim();
-    if branch.is_empty() || branch.chars().any(char::is_whitespace) || branch.contains("..") {
+    if target_type == BackupTargetType::Git
+        && (branch.is_empty() || branch.chars().any(char::is_whitespace) || branch.contains(".."))
+    {
         return Err(AppError::Validation("Branch name is not valid.".into()));
     }
     if let Some(time) = input.backup_time.as_deref() {
@@ -95,6 +103,17 @@ fn validate_input(conn: &Connection, input: &SaveAutomaticProfileRuleInput) -> A
             return Err(AppError::NotFound("Integration account"));
         }
     }
+    if let Some(account_id) = input.s3_account_id {
+        if !crate::database::s3_accounts::exists(conn, account_id)? {
+            return Err(AppError::NotFound("S3 account"));
+        }
+    }
+    match target_type {
+        BackupTargetType::S3 if input.s3_account_id.is_none() => {
+            return Err(AppError::Validation("Choose an S3 integration.".into()));
+        }
+        _ => {}
+    }
     if let Some(exclude_profile_id) = input.exclude_profile_id {
         if !crate::database::excludes::exists(conn, exclude_profile_id)? {
             return Err(AppError::NotFound("Exclude profile"));
@@ -112,7 +131,9 @@ fn validate_input(conn: &Connection, input: &SaveAutomaticProfileRuleInput) -> A
             "Choose an AI connection before enabling AI commit messages.".into(),
         ));
     }
-    if input.auto_create_repositories && input.integration_account_id.is_none() {
+    if input.auto_create_repositories
+        && (target_type != BackupTargetType::Git || input.integration_account_id.is_none())
+    {
         return Err(AppError::Validation(
             "Choose a Git provider account for automatic repository creation.".into(),
         ));
@@ -174,16 +195,23 @@ pub fn create(
     let now = Utc::now();
     conn.execute(
         "INSERT INTO automatic_profile_rules (name, root_path, enabled, \
-             integration_account_id, branch, exclude_profile_id, backup_time, \
+             integration_account_id, target_type, s3_account_id, s3_prefix, branch, exclude_profile_id, backup_time, \
              backup_on_startup, notifications_enabled, continuous_backup_enabled, \
              change_debounce_seconds, ai_account_id, ai_major_commit_messages_enabled, \
              ai_fast_commit_messages_enabled, auto_create_repositories, created_at, updated_at) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?16)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?19)",
         params![
             input.name.trim(),
             input.root_path,
             input.enabled,
             input.integration_account_id,
+            input.target_type.unwrap_or(BackupTargetType::Git).as_str(),
+            input.s3_account_id,
+            input
+                .s3_prefix
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty()),
             input.branch.as_deref().unwrap_or("main").trim(),
             input.exclude_profile_id,
             input.backup_time,
@@ -221,17 +249,25 @@ pub fn update(
     }
     conn.execute(
         "UPDATE automatic_profile_rules SET name = ?1, root_path = ?2, enabled = ?3, \
-             integration_account_id = ?4, branch = ?5, exclude_profile_id = ?6, \
-             backup_time = ?7, backup_on_startup = ?8, notifications_enabled = ?9, \
-             continuous_backup_enabled = ?10, change_debounce_seconds = ?11, \
-             ai_account_id = ?12, ai_major_commit_messages_enabled = ?13, \
-             ai_fast_commit_messages_enabled = ?14, auto_create_repositories = ?15, \
-             updated_at = ?16 WHERE id = ?17",
+             integration_account_id = ?4, target_type = ?5, s3_account_id = ?6, s3_prefix = ?7, \
+             branch = ?8, exclude_profile_id = ?9, backup_time = ?10, \
+             backup_on_startup = ?11, notifications_enabled = ?12, \
+             continuous_backup_enabled = ?13, change_debounce_seconds = ?14, \
+             ai_account_id = ?15, ai_major_commit_messages_enabled = ?16, \
+             ai_fast_commit_messages_enabled = ?17, auto_create_repositories = ?18, \
+             updated_at = ?19 WHERE id = ?20",
         params![
             input.name.trim(),
             input.root_path,
             input.enabled,
             input.integration_account_id,
+            input.target_type.unwrap_or(BackupTargetType::Git).as_str(),
+            input.s3_account_id,
+            input
+                .s3_prefix
+                .as_deref()
+                .map(str::trim)
+                .filter(|value| !value.is_empty()),
             input.branch.as_deref().unwrap_or("main").trim(),
             input.exclude_profile_id,
             input.backup_time,
@@ -389,6 +425,9 @@ mod tests {
             name: "Desktop projects".into(),
             root_path: root_path.into(),
             integration_account_id: None,
+            target_type: None,
+            s3_account_id: None,
+            s3_prefix: None,
             branch: Some("main".into()),
             exclude_profile_id: None,
             backup_time: Some("02:00".into()),
@@ -418,6 +457,34 @@ mod tests {
     }
 
     #[test]
+    fn s3_rule_roundtrip_keeps_destination_and_prefix() {
+        let db = Database::open_in_memory().unwrap();
+        let account = db
+            .with(|conn| {
+                crate::database::s3_accounts::insert(
+                    conn,
+                    "Archive",
+                    None,
+                    "eu-central-1",
+                    "backups",
+                    false,
+                )
+            })
+            .unwrap();
+        let mut value = input("C:\\S3Root");
+        value.target_type = Some(BackupTargetType::S3);
+        value.s3_account_id = Some(account.id);
+        value.s3_prefix = Some("automatic".into());
+
+        let rule = db.with(|conn| create(conn, &value)).unwrap();
+
+        assert_eq!(rule.target_type, BackupTargetType::S3);
+        assert_eq!(rule.s3_account_id, Some(account.id));
+        assert_eq!(rule.s3_prefix.as_deref(), Some("automatic"));
+        assert!(!rule.auto_create_repositories);
+    }
+
+    #[test]
     fn deleting_a_rule_retires_generated_profiles_but_keeps_manual_profiles() {
         let db = Database::open_in_memory().unwrap();
         let rule = db.with(|conn| create(conn, &input("C:\\Desktop"))).unwrap();
@@ -432,6 +499,9 @@ mod tests {
                         repository_url: None,
                         branch: None,
                         integration_account_id: None,
+                        target_type: None,
+                        s3_account_id: None,
+                        s3_prefix: None,
                     },
                     rule.id,
                 )
@@ -453,6 +523,9 @@ mod tests {
                         repository_url: None,
                         branch: None,
                         integration_account_id: None,
+                        target_type: None,
+                        s3_account_id: None,
+                        s3_prefix: None,
                     },
                 )
             })

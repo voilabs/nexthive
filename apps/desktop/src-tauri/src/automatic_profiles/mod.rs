@@ -16,8 +16,9 @@ use crate::errors::{AppError, AppResult};
 use crate::integrations::repositories;
 use crate::models::{
     AutomaticProfileEntryKind, AutomaticProfileMember, AutomaticProfileMemberStatus,
-    AutomaticProfileSyncResult, CreateBackupProfileInput, SaveAutomaticProfileRuleInput,
-    SourceScanMode, UpdateBackupProfileInput, UpdateBackupSettingsInput,
+    AutomaticProfileSyncResult, BackupTargetType, CreateBackupProfileInput,
+    SaveAutomaticProfileRuleInput, SourceScanMode, UpdateBackupProfileInput,
+    UpdateBackupSettingsInput,
 };
 use crate::state::AppState;
 
@@ -180,7 +181,10 @@ async fn reconcile_unlocked(
     let mut initial_backups = Vec::new();
 
     for entry in entries {
-        if !force_repository_retry && repository_retry_is_deferred(app, &rule, &entry)? {
+        if rule.target_type == BackupTargetType::Git
+            && !force_repository_retry
+            && repository_retry_is_deferred(app, &rule, &entry)?
+        {
             continue;
         }
         let ensured = if let Some(member) = current_member(app, &rule, &entry)? {
@@ -202,7 +206,13 @@ async fn reconcile_unlocked(
             continue;
         };
         let profile = state.db.with(|conn| profiles::get(conn, profile_id))?;
-        if rule.auto_create_repositories && profile.repository_name.is_none() {
+        if ensured.profile_created && rule.target_type == BackupTargetType::S3 {
+            initial_backups.push(profile_id);
+        }
+        if rule.target_type == BackupTargetType::Git
+            && rule.auto_create_repositories
+            && profile.repository_name.is_none()
+        {
             match repositories::create_for_profile(app, profile_id).await {
                 Ok(_) => {
                     counts.repositories_created += 1;
@@ -428,7 +438,16 @@ fn current_member(
             || source.path != entry.path.to_string_lossy()
             || source.scan_mode != expected_mode
             || source.exclude_profile_id != rule.exclude_profile_id
-            || (rule.auto_create_repositories && profile.repository_name.is_none())
+            || profile.target_type != rule.target_type
+            || (rule.target_type == BackupTargetType::Git
+                && profile.repository_name.is_none()
+                && profile.integration_account_id != rule.integration_account_id)
+            || (rule.target_type == BackupTargetType::S3
+                && (profile.s3_account_id != rule.s3_account_id
+                    || profile.s3_prefix != rule.s3_prefix))
+            || (rule.target_type == BackupTargetType::Git
+                && rule.auto_create_repositories
+                && profile.repository_name.is_none())
         {
             return Ok(None);
         }
@@ -462,11 +481,12 @@ fn ensure_member(
         };
 
         let (profile, profile_created) = if let Some(profile) = existing_profile {
-            let integration_account_id = if profile.repository_name.is_some() {
-                profile.integration_account_id
-            } else {
-                rule.integration_account_id
-            };
+            let integration_account_id =
+                if rule.target_type == BackupTargetType::Git && profile.repository_name.is_some() {
+                    profile.integration_account_id
+                } else {
+                    rule.integration_account_id
+                };
             (
                 profiles::update(
                     conn,
@@ -475,7 +495,14 @@ fn ensure_member(
                         name: Some(display_name.clone()),
                         branch: Some(rule.branch.clone()),
                         enabled: Some(true),
+                        target_type: Some(rule.target_type),
                         integration_account_id: Some(integration_account_id),
+                        s3_account_id: Some(rule.s3_account_id),
+                        s3_prefix: Some(rule.s3_prefix.clone()),
+                        repository_owner: (rule.target_type == BackupTargetType::S3)
+                            .then_some(None),
+                        repository_name: (rule.target_type == BackupTargetType::S3).then_some(None),
+                        repository_url: (rule.target_type == BackupTargetType::S3).then_some(None),
                         ..Default::default()
                     },
                 )?,
@@ -487,11 +514,14 @@ fn ensure_member(
                     conn,
                     &CreateBackupProfileInput {
                         name: display_name,
+                        target_type: Some(rule.target_type),
                         repository_owner: None,
                         repository_name: None,
                         repository_url: None,
                         branch: Some(rule.branch.clone()),
                         integration_account_id: rule.integration_account_id,
+                        s3_account_id: rule.s3_account_id,
+                        s3_prefix: rule.s3_prefix.clone(),
                     },
                     rule.id,
                 )?,

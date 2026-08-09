@@ -1,48 +1,29 @@
 import { listen } from "@tauri-apps/api/event";
 import { FolderCog, Loader2, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 
 import { EmptyState } from "@/components/EmptyState";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { AutomaticProfileRuleCard } from "@/features/automaticProfiles/components/AutomaticProfileRuleCard";
-import { AutomaticProfileRuleDialog } from "@/features/automaticProfiles/components/AutomaticProfileRuleDialog";
 import { automaticProfilesCopy } from "@/features/automaticProfiles/copy";
 import { automaticRuleInput } from "@/features/automaticProfiles/ruleInput";
 import { useTranslation } from "@/i18n";
-import { useAiStore } from "@/stores/ai";
 import { useAutomaticProfilesStore } from "@/stores/automaticProfiles";
-import { useExcludesStore } from "@/stores/excludes";
-import { useIntegrationsStore } from "@/stores/integrations";
-import type {
-	AutomaticProfileRule,
-	SaveAutomaticProfileRuleInput,
-} from "@/types";
+import type { AutomaticProfileRule } from "@/types";
 import { toAppError } from "@/types/errors";
 
 export function AutomaticProfilesPage() {
 	const { language } = useTranslation();
 	const copy = automaticProfilesCopy(language);
 	const store = useAutomaticProfilesStore();
-	const integrations = useIntegrationsStore();
-	const excludes = useExcludesStore();
-	const ai = useAiStore();
-	const [dialogOpen, setDialogOpen] = useState(false);
-	const [editingRule, setEditingRule] = useState<AutomaticProfileRule | null>(null);
+	const navigate = useNavigate();
 	const [actionError, setActionError] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (!store.hasLoaded) void store.load();
 	}, [store.hasLoaded, store.load]);
-	useEffect(() => {
-		if (!integrations.hasLoaded) void integrations.load();
-	}, [integrations.hasLoaded, integrations.load]);
-	useEffect(() => {
-		if (!excludes.hasLoaded) void excludes.load();
-	}, [excludes.hasLoaded, excludes.load]);
-	useEffect(() => {
-		if (!ai.hasLoaded) void ai.load();
-	}, [ai.hasLoaded, ai.load]);
 	useEffect(() => {
 		let disposed = false;
 		let unlisten: (() => void) | undefined;
@@ -57,12 +38,6 @@ export function AutomaticProfilesPage() {
 			unlisten?.();
 		};
 	}, [store.upsert]);
-
-	const save = async (input: SaveAutomaticProfileRuleInput) => {
-		setActionError(null);
-		if (editingRule) await store.update(editingRule.id, input);
-		else await store.create(input);
-	};
 
 	const toggle = async (rule: AutomaticProfileRule) => {
 		setActionError(null);
@@ -99,7 +74,7 @@ export function AutomaticProfilesPage() {
 			<PageHeader
 				title={copy.title}
 				description={copy.description}
-				actions={<Button onClick={() => { setEditingRule(null); setDialogOpen(true); }}><Plus />{copy.newRule}</Button>}
+				actions={<Button onClick={() => navigate("/automatic-profiles/new")}><Plus />{copy.newRule}</Button>}
 			/>
 
 			{actionError || store.error ? (
@@ -115,7 +90,7 @@ export function AutomaticProfilesPage() {
 					icon={FolderCog}
 					title={copy.emptyTitle}
 					description={copy.emptyDescription}
-					action={<Button onClick={() => { setEditingRule(null); setDialogOpen(true); }}><Plus />{copy.newRule}</Button>}
+					action={<Button onClick={() => navigate("/automatic-profiles/new")}><Plus />{copy.newRule}</Button>}
 				/>
 			) : (
 				<div className="space-y-4">
@@ -124,7 +99,7 @@ export function AutomaticProfilesPage() {
 							key={rule.id}
 							rule={rule}
 							syncing={store.syncingIds.includes(rule.id)}
-							onEdit={() => { setEditingRule(rule); setDialogOpen(true); }}
+							onEdit={() => navigate(`/automatic-profiles/${rule.id}/edit`)}
 							onSync={() => { setActionError(null); void store.sync(rule.id).catch((error) => setActionError(toAppError(error).message)); }}
 							onToggle={() => void toggle(rule)}
 							onRemove={() => void remove(rule)}
@@ -133,13 +108,6 @@ export function AutomaticProfilesPage() {
 					<p className="px-1 text-[11px] text-muted-foreground">{copy.keptNotice}</p>
 				</div>
 			)}
-
-			<AutomaticProfileRuleDialog
-				open={dialogOpen}
-				rule={editingRule}
-				onOpenChange={setDialogOpen}
-				onSave={save}
-			/>
 		</div>
 	);
 }

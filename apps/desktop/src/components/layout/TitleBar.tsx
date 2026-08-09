@@ -1,5 +1,6 @@
 import { Minus, Square, X } from "lucide-react";
 import type { PointerEvent } from "react";
+import { useRef } from "react";
 import { useLocation } from "react-router";
 
 import { BrandMark } from "@/components/BrandMark";
@@ -9,8 +10,11 @@ import { type TranslationKey, useTranslation } from "@/i18n";
 export function TitleBar() {
 	const { pathname } = useLocation();
 	const { t } = useTranslation();
+	const dragStart = useRef<{ x: number; y: number } | null>(null);
 	const sectionTitle = pathname.startsWith("/backups")
 		? "nav.backups"
+		: pathname.startsWith("/automatic-profiles")
+			? "nav.automaticProfiles"
 		: pathname.startsWith("/history")
 			? "nav.history"
 			: pathname.startsWith("/activity")
@@ -26,9 +30,17 @@ export function TitleBar() {
 								: "nav.dashboard";
 
 	const handlePointerDown = (event: PointerEvent<HTMLElement>) => {
-		if (event.button !== 0 || event.detail > 1) return;
+		if (event.button !== 0) return;
 		const target = event.target as HTMLElement;
 		if (target.closest("[data-window-control]")) return;
+		dragStart.current = { x: event.clientX, y: event.clientY };
+	};
+
+	const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
+		const start = dragStart.current;
+		if (!start || event.buttons !== 1) return;
+		if (Math.hypot(event.clientX - start.x, event.clientY - start.y) < 4) return;
+		dragStart.current = null;
 		void windowApi.startDragging();
 	};
 
@@ -36,18 +48,18 @@ export function TitleBar() {
 		<header
 			role="toolbar"
 			aria-label={t("window.toolbar")}
-			data-tauri-drag-region
 			onPointerDown={handlePointerDown}
+			onPointerMove={handlePointerMove}
+			onPointerUp={() => { dragStart.current = null; }}
+			onPointerCancel={() => { dragStart.current = null; }}
 			onDoubleClick={() => void windowApi.toggleMaximize()}
 			className="group/titlebar relative z-50 flex h-11 shrink-0 items-center bg-secondary"
 		>
 			<div
-				data-tauri-drag-region
 				className="flex min-w-0 flex-1 items-center gap-2.5 px-6"
 			>
 				<BrandMark className="h-5 w-5" />
 				<span
-					data-tauri-drag-region
 					className="inline-flex items-center gap-1.5 text-[12px] font-semibold tracking-[-0.01em] text-foreground/85"
 				>
 					NextHive
@@ -56,7 +68,6 @@ export function TitleBar() {
 			</div>
 
 			<div
-				data-tauri-drag-region
 				className="pointer-events-none absolute inset-0 flex items-center justify-center"
 			>
 				<span className="px-2 py-1 text-[11px] font-medium text-muted-foreground">

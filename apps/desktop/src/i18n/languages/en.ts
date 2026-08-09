@@ -178,6 +178,7 @@ export const en = {
 	"backup.stage.committing": "Creating commit",
 	"backup.stage.pushing": "Uploading to Git provider",
 	"backup.stage.uploadingLargeFiles": "Uploading large files with Git LFS",
+	"backup.stage.uploadingS3": "Uploading snapshot to S3",
 	"profileSettings.continuous.title": "Back up when files change",
 	"profileSettings.continuous.description":
 		"Watch source folders in the background and automatically commit every real change.",
@@ -398,6 +399,21 @@ export const en = {
 	"createProfile.branchOptional": "(optional, defaults to main)",
 	"createProfile.creatingRepo": "Creating repository…",
 	"createProfile.repoFailed": "Profile created, but the repository could not be created: {message} You can retry from the profile card.",
+	"integrations.manage": "Manage",
+	"integrations.configure": "Configure",
+	"integrations.detail.back": "Integrations",
+	"integrations.detail.comingNext": "Coming next",
+	"integrations.detail.notAvailableYet": "Not available yet",
+	"integrations.detail.destinationLayout": "Destination layout",
+	"integrations.detail.destinationLayoutDesc": "The selected folder's contents will be written into a dated destination. The source folder itself is never modified.",
+	"integrations.detail.safeguards": "Required safeguards",
+	"integrations.detail.disclaimer": "This page documents the real connection design. NextHive will not show a connected state or successful backup until authentication, transfer, verification and retry handling are complete.",
+	"integrations.detail.available": "Available",
+	"integrations.detail.addAccount": "Add account",
+	"integrations.detail.retry": "Retry",
+	"integrations.detail.noAccountTitle": "No {name} account connected",
+	"integrations.detail.noAccountDesc": "Connect a token-based account to list or create private repositories and deliver backups.",
+	"integrations.detail.connectAccount": "Connect {name}"
 } as const;
 
 export type TranslationKey = keyof typeof en;

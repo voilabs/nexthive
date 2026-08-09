@@ -22,6 +22,9 @@ export interface AutomaticProfileRule {
 	rootPath: string;
 	enabled: boolean;
 	integrationAccountId: number | null;
+	targetType: "git" | "s3";
+	s3AccountId: number | null;
+	s3Prefix: string | null;
 	branch: string;
 	excludeProfileId: number | null;
 	backupTime: string | null;
@@ -44,6 +47,9 @@ export interface SaveAutomaticProfileRuleInput {
 	name: string;
 	rootPath: string;
 	integrationAccountId: number | null;
+	targetType: "git" | "s3";
+	s3AccountId: number | null;
+	s3Prefix: string | null;
 	branch: string | null;
 	excludeProfileId: number | null;
 	backupTime: string | null;

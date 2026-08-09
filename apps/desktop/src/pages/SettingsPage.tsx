@@ -231,7 +231,7 @@ export function SettingsRow({
 	children: React.ReactNode;
 }) {
 	return (
-		<div className="first:rounded-t-3xl! p-4 last:rounded-b-3xl! bg-card last:rounded-t-xl first:rounded-b-xl not-last:rounded-xl not-first:rounded-xl border border-transparent dark:border-white/5 border-b-black/5 dark:border-b-white/5">
+		<div className="first:rounded-t-3xl! p-4 last:rounded-b-3xl! bg-card last:rounded-t-xl first:rounded-b-xl not-last:rounded-xl not-first:rounded-xl">
 			{children}
 		</div>
 	)

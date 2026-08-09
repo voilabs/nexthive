@@ -25,7 +25,8 @@ use crate::git;
 use crate::github::lfs;
 use crate::integrations::provider_api;
 use crate::models::{
-    BackupProfile, BackupRun, BackupSource, GitProvider, IntegrationAccount, IntegrationAuthMethod,
+    BackupProfile, BackupRun, BackupSource, BackupTargetType, GitProvider, IntegrationAccount,
+    IntegrationAuthMethod,
 };
 use crate::scanner::{self, ScannedFile};
 use crate::state::AppState;
@@ -137,54 +138,74 @@ fn run_blocking(
             "This profile has no folders yet. Add at least one folder to back up.".into(),
         ));
     }
-    let (Some(owner), Some(repo_name)) = (
-        profile.repository_owner.clone(),
-        profile.repository_name.clone(),
-    ) else {
-        return Err(AppError::Validation(
-            "This profile has no repository yet. Choose or create one first.".into(),
-        ));
-    };
-    let Some(account_id) = profile.integration_account_id else {
-        return Err(AppError::Validation(
-            "Link a Git provider account to this profile first.".into(),
-        ));
-    };
-    let account = state
-        .db
-        .with(|conn| integration_accounts::get(conn, account_id))?;
-    if account.auth_method != IntegrationAuthMethod::Pat {
-        return Err(AppError::Validation(
-            "Pushing over SSH is not supported yet — it arrives in an upcoming update. \
-             Link a token-based account to this profile."
-                .into(),
-        ));
-    }
-    let Some(token) = KeyringStore.get_secret(&provider_token_key(account.provider, account_id))?
-    else {
-        return Err(AppError::Validation(
-            "No token is stored for the linked account. Remove it and add it again.".into(),
-        ));
-    };
-
     log::info!("backup started for profile #{profile_id} (trigger: {trigger})");
     let run = state
         .db
         .with(|conn| runs::insert_running(conn, profile_id))?;
 
-    let outcome = pipeline(
-        app,
-        &state,
-        &profile,
-        &profile_sources,
-        &owner,
-        &repo_name,
-        &account,
-        &token,
-        run.id,
-        trigger,
-        change_hints.as_ref(),
-    );
+    let outcome = match profile.target_type {
+        BackupTargetType::S3 => {
+            let account_id = profile.s3_account_id.ok_or_else(|| {
+                AppError::Validation("Choose an S3 destination for this profile.".into())
+            })?;
+            let account = state
+                .db
+                .with(|conn| crate::database::s3_accounts::get(conn, account_id))?;
+            pipeline_s3(
+                app,
+                &state,
+                &profile,
+                &profile_sources,
+                &account,
+                run.id,
+                trigger,
+                change_hints.as_ref(),
+            )
+        }
+        BackupTargetType::Git => {
+            let (Some(owner), Some(repo_name)) = (
+                profile.repository_owner.clone(),
+                profile.repository_name.clone(),
+            ) else {
+                return Err(AppError::Validation(
+                    "This profile has no repository yet. Choose or create one first.".into(),
+                ));
+            };
+            let account_id = profile.integration_account_id.ok_or_else(|| {
+                AppError::Validation("Link a Git provider account to this profile first.".into())
+            })?;
+            let account = state
+                .db
+                .with(|conn| integration_accounts::get(conn, account_id))?;
+            if account.auth_method != IntegrationAuthMethod::Pat {
+                return Err(AppError::Validation(
+                    "Pushing over SSH is not supported yet. Link a token-based account to this profile."
+                        .into(),
+                ));
+            }
+            let token = KeyringStore
+                .get_secret(&provider_token_key(account.provider, account_id))?
+                .ok_or_else(|| {
+                    AppError::Validation(
+                        "No token is stored for the linked account. Remove it and add it again."
+                            .into(),
+                    )
+                })?;
+            pipeline(
+                app,
+                &state,
+                &profile,
+                &profile_sources,
+                &owner,
+                &repo_name,
+                &account,
+                &token,
+                run.id,
+                trigger,
+                change_hints.as_ref(),
+            )
+        }
+    };
 
     match outcome {
         Ok(counts) => {
@@ -256,6 +277,172 @@ struct SourceDiff {
     unchanged: Vec<(ScannedFile, String)>,
     /// Relative paths that disappeared from the source.
     deleted: Vec<String>,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn pipeline_s3(
+    app: &AppHandle,
+    state: &AppState,
+    profile: &BackupProfile,
+    profile_sources: &[BackupSource],
+    account: &crate::models::S3Account,
+    run_id: i64,
+    trigger: &str,
+    change_hints: Option<&ChangeHints>,
+) -> AppResult<PipelineCounts> {
+    emit_progress(app, profile.id, run_id, "scanning");
+    let mut diffs = Vec::new();
+    let mut total_scanned = 0usize;
+    for source in profile_sources {
+        let root = Path::new(&source.path);
+        if !root.is_dir() {
+            return Err(AppError::Validation(format!(
+                "Source folder \"{}\" no longer exists or is inaccessible.",
+                source.path
+            )));
+        }
+        let rules = state
+            .db
+            .with(|conn| excludes::rules_for_source(conn, source.id))?;
+        let matcher = if rules.is_empty() {
+            None
+        } else {
+            Some(scanner::excludes::build_rules_matcher(&rules)?)
+        };
+        let scanned = scanner::scan_source(
+            source.id,
+            root,
+            source.scan_mode,
+            matcher.as_ref(),
+            |count| {
+                let _ = app.emit(
+                    "backup-progress",
+                    ProgressPayload {
+                        profile_id: profile.id,
+                        run_id,
+                        stage: "scanning",
+                        files_scanned: Some(total_scanned + count),
+                    },
+                );
+            },
+        )?;
+        total_scanned += scanned.len();
+        let stored = state
+            .db
+            .with(|conn| snapshots::map_for_source(conn, source.id))?;
+        diffs.push(diff_source(
+            source,
+            scanned,
+            stored,
+            change_hints.and_then(|h| h.get(&source.id)),
+        )?);
+    }
+
+    let added = diffs.iter().map(|d| d.added.len() as i64).sum();
+    let modified = diffs.iter().map(|d| d.modified.len() as i64).sum();
+    let deleted = diffs.iter().map(|d| d.deleted.len() as i64).sum();
+    let bytes = diffs
+        .iter()
+        .flat_map(|d| d.added.iter().chain(d.modified.iter()))
+        .map(|(f, _)| f.size)
+        .sum();
+
+    let profile_settings = state.db.with(|conn| settings::get(conn, profile.id))?;
+    let time_zone = state
+        .db
+        .with(|conn| app_settings::get(conn).map(|s| s.time_zone))
+        .and_then(|value| ConfiguredTimeZone::parse(&value))
+        .unwrap_or(ConfiguredTimeZone::System);
+    let clock = time_zone.now();
+    let is_change = matches!(trigger, "change" | "change-catch-up");
+    let snapshot_relative = if profile_settings.continuous_backup_enabled && is_change {
+        format!("{}-hot-{run_id}", clock.date)
+    } else {
+        clock.date.to_string()
+    };
+    let previous = state
+        .db
+        .with(|conn| settings::last_snapshot_path(conn, profile.id))?;
+
+    let mut upserts = Vec::new();
+    let mut deletes = Vec::new();
+    for diff in &diffs {
+        for (file, hash) in diff
+            .added
+            .iter()
+            .chain(diff.modified.iter())
+            .chain(diff.refreshed.iter())
+        {
+            upserts.push(SnapshotUpsert {
+                source_id: diff.source_id,
+                relative_path: file.relative_path.clone(),
+                hash: hash.clone(),
+                size: file.size,
+                modified_at: file.modified_at,
+            });
+        }
+        deletes.extend(
+            diff.deleted
+                .iter()
+                .cloned()
+                .map(|path| (diff.source_id, path)),
+        );
+    }
+    if added == 0
+        && modified == 0
+        && deleted == 0
+        && previous.as_deref() == Some(&snapshot_relative)
+    {
+        state
+            .db
+            .with(|conn| snapshots::apply_changes(conn, &upserts, &deletes))?;
+        return Ok(PipelineCounts {
+            added,
+            modified,
+            deleted,
+            bytes,
+            commit_sha: None,
+        });
+    }
+
+    emit_progress(app, profile.id, run_id, "uploadingS3");
+    let uploader = crate::s3_backup::uploader(account)?;
+    let prefix = profile
+        .s3_prefix
+        .as_deref()
+        .unwrap_or("nexthive")
+        .trim_matches('/');
+    for diff in &diffs {
+        for (file, _) in diff
+            .added
+            .iter()
+            .chain(diff.modified.iter())
+            .chain(diff.refreshed.iter())
+            .chain(diff.unchanged.iter())
+        {
+            let key = format!(
+                "{prefix}/profile-{}/{}/source-{}/{}",
+                profile.id, snapshot_relative, diff.source_id, file.relative_path
+            );
+            uploader.upload(&key, diff.source_id, file)?;
+        }
+    }
+    state.db.with(|conn| {
+        snapshots::apply_changes_with_snapshot(
+            conn,
+            profile.id,
+            &snapshot_relative,
+            &upserts,
+            &deletes,
+        )
+    })?;
+    Ok(PipelineCounts {
+        added,
+        modified,
+        deleted,
+        bytes,
+        commit_sha: None,
+    })
 }
 
 #[allow(clippy::too_many_arguments)]

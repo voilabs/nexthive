@@ -3,14 +3,6 @@ import { FolderOpen, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -20,7 +12,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { automaticProfilesCopy } from "@/features/automaticProfiles/copy";
 import { getProvider } from "@/features/integrations/providers";
@@ -28,6 +19,7 @@ import { useTranslation } from "@/i18n";
 import { useAiStore } from "@/stores/ai";
 import { useExcludesStore } from "@/stores/excludes";
 import { useIntegrationsStore } from "@/stores/integrations";
+import { useS3Store } from "@/stores/s3";
 import type {
 	AutomaticProfileRule,
 	SaveAutomaticProfileRuleInput,
@@ -35,10 +27,37 @@ import type {
 import { toAppError } from "@/types/errors";
 
 interface Props {
-	open: boolean;
 	rule: AutomaticProfileRule | null;
-	onOpenChange(open: boolean): void;
 	onSave(input: SaveAutomaticProfileRuleInput): Promise<void>;
+	onCancel(): void;
+}
+
+function FormRow({
+	title,
+	description,
+	disabled,
+	children,
+}: {
+	title: string;
+	description?: string;
+	disabled?: boolean;
+	children: React.ReactNode;
+}) {
+	return (
+		<div className={`grid grid-cols-[1fr_minmax(0,1.5fr)] gap-8 items-start py-5 first:pt-0 last:pb-0 ${disabled ? 'opacity-50 grayscale pointer-events-none' : ''}`}>
+			<div>
+				<Label className="text-[14px] font-medium text-foreground/90">{title}</Label>
+				{description ? (
+					<p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/80">
+						{description}
+					</p>
+				) : null}
+			</div>
+			<div className="flex w-full min-h-[40px] items-center">
+				{children}
+			</div>
+		</div>
+	);
 }
 
 function ToggleRow({
@@ -55,29 +74,20 @@ function ToggleRow({
 	onCheckedChange(value: boolean): void;
 }) {
 	return (
-		<div className="flex items-center justify-between gap-5 py-2">
-			<div>
-				<p className="text-sm font-medium">{title}</p>
-				{description ? (
-					<p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-						{description}
-					</p>
-				) : null}
-			</div>
+		<FormRow title={title} description={description} disabled={disabled}>
 			<Switch
 				checked={checked}
 				disabled={disabled}
 				onCheckedChange={onCheckedChange}
 			/>
-		</div>
+		</FormRow>
 	);
 }
 
-export function AutomaticProfileRuleDialog({
-	open,
+export function AutomaticProfileRuleForm({
 	rule,
-	onOpenChange,
 	onSave,
+	onCancel,
 }: Props) {
 	const { language } = useTranslation();
 	const copy = automaticProfilesCopy(language);
@@ -86,10 +96,12 @@ export function AutomaticProfileRuleDialog({
 	);
 	const excludeProfiles = useExcludesStore((state) => state.profiles);
 	const aiAccounts = useAiStore((state) => state.accounts);
+	const s3Accounts = useS3Store((state) => state.accounts);
 	const [name, setName] = useState("");
 	const [rootPath, setRootPath] = useState("");
-	const [integrationAccount, setIntegrationAccount] = useState("none");
+	const [destination, setDestination] = useState("none");
 	const [branch, setBranch] = useState("main");
+	const [s3Prefix, setS3Prefix] = useState("");
 	const [autoRepositories, setAutoRepositories] = useState(true);
 	const [dailyEnabled, setDailyEnabled] = useState(true);
 	const [backupTime, setBackupTime] = useState("02:00");
@@ -106,11 +118,17 @@ export function AutomaticProfileRuleDialog({
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		if (!open) return;
 		setName(rule?.name ?? "");
 		setRootPath(rule?.rootPath ?? "");
-		setIntegrationAccount(rule?.integrationAccountId?.toString() ?? "none");
+		setDestination(
+			rule?.targetType === "s3" && rule.s3AccountId !== null
+				? `s3:${rule.s3AccountId}`
+				: rule?.integrationAccountId !== null && rule?.integrationAccountId !== undefined
+					? `git:${rule.integrationAccountId}`
+					: "none",
+		);
 		setBranch(rule?.branch ?? "main");
+		setS3Prefix(rule?.s3Prefix ?? "");
 		setAutoRepositories(rule?.autoCreateRepositories ?? true);
 		setDailyEnabled(rule ? rule.backupTime !== null : true);
 		setBackupTime(rule?.backupTime ?? "02:00");
@@ -125,20 +143,22 @@ export function AutomaticProfileRuleDialog({
 		setEnabled(rule?.enabled ?? true);
 		setError(null);
 		setSubmitting(false);
-	}, [open, rule]);
+	}, [rule]);
 
+	const targetType = destination.startsWith("s3:") ? "s3" : "git";
 	const selectedAccount = useMemo(
-		() => accounts.find((account) => account.id === Number(integrationAccount)),
-		[accounts, integrationAccount],
+		() => accounts.find((account) => `git:${account.id}` === destination),
+		[accounts, destination],
 	);
 	const canSubmit =
 		!submitting &&
 		name.trim().length > 0 &&
 		rootPath.trim().length > 0 &&
-		(!autoRepositories || selectedAccount !== undefined) &&
+		destination !== "none" &&
+		(targetType === "s3" || !autoRepositories || selectedAccount !== undefined) &&
 		debounceSeconds >= 5 &&
 		debounceSeconds <= 3600 &&
-		(!(aiMajor || aiFast) || aiAccount !== "none");
+		(targetType === "s3" || !(aiMajor || aiFast) || aiAccount !== "none");
 
 	const chooseRoot = async () => {
 		const selected = await openFolderDialog({
@@ -158,9 +178,11 @@ export function AutomaticProfileRuleDialog({
 			await onSave({
 				name: name.trim(),
 				rootPath: rootPath.trim(),
-				integrationAccountId:
-					integrationAccount === "none" ? null : Number(integrationAccount),
-				branch: branch.trim() || null,
+				targetType,
+				integrationAccountId: targetType === "git" ? Number(destination.slice(4)) : null,
+				s3AccountId: targetType === "s3" ? Number(destination.slice(3)) : null,
+				s3Prefix: targetType === "s3" ? s3Prefix.trim() || null : null,
+				branch: targetType === "git" ? branch.trim() || null : null,
 				excludeProfileId:
 					excludeProfile === "none" ? null : Number(excludeProfile),
 				backupTime: dailyEnabled ? backupTime : null,
@@ -168,13 +190,13 @@ export function AutomaticProfileRuleDialog({
 				notificationsEnabled: notifications,
 				continuousBackupEnabled: continuous,
 				changeDebounceSeconds: debounceSeconds,
-				aiAccountId: aiAccount === "none" ? null : Number(aiAccount),
-				aiMajorCommitMessagesEnabled: aiMajor,
-				aiFastCommitMessagesEnabled: aiFast,
-				autoCreateRepositories: autoRepositories,
+				aiAccountId: targetType === "git" && aiAccount !== "none" ? Number(aiAccount) : null,
+				aiMajorCommitMessagesEnabled: targetType === "git" && aiMajor,
+				aiFastCommitMessagesEnabled: targetType === "git" && aiFast,
+				autoCreateRepositories: targetType === "git" && autoRepositories,
 				enabled,
 			});
-			onOpenChange(false);
+			onCancel();
 		} catch (cause) {
 			setError(toAppError(cause).message);
 			setSubmitting(false);
@@ -182,151 +204,146 @@ export function AutomaticProfileRuleDialog({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-h-[88vh] max-w-2xl overflow-y-auto">
-				<form onSubmit={submit}>
-					<DialogHeader>
-						<DialogTitle>{rule ? copy.edit : copy.newRule}</DialogTitle>
-						<DialogDescription>{copy.identityDescription}</DialogDescription>
-					</DialogHeader>
+		<form onSubmit={submit} className="w-full space-y-10 pb-4">
 
-					<div className="space-y-5 py-5">
-						<section className="space-y-3">
-							<p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-								{copy.identity}
-							</p>
-							<div className="grid grid-cols-2 gap-3">
-								<div className="grid gap-2">
-									<Label htmlFor="automatic-name">{copy.name}</Label>
-									<Input
-										id="automatic-name"
-										value={name}
-										onChange={(event) => setName(event.target.value)}
-										placeholder="Desktop"
-										autoFocus
-									/>
-									<p className="text-[11px] text-muted-foreground">{copy.nameHint}</p>
-								</div>
-								<div className="grid gap-2">
-									<Label htmlFor="automatic-root">{copy.root}</Label>
-									<div className="flex gap-2">
-										<Input
-											id="automatic-root"
-											value={rootPath}
-											onChange={(event) => setRootPath(event.target.value)}
-											placeholder="C:\\Users\\User\\Desktop"
-										/>
-										<Button type="button" variant="outline" onClick={() => void chooseRoot()}>
-											<FolderOpen />
-											{copy.browse}
-										</Button>
-									</div>
-								</div>
-							</div>
-						</section>
+			<div className="flex flex-col gap-2">
+				<p className="text-sm font-medium">{copy.identity}</p>
+				<div className="rounded-2xl border border-border/50 bg-card p-6 divide-y divide-border/40 shadow-sm">
+					<FormRow title={copy.name} description={copy.nameHint}>
+						<Input
+							id="automatic-name"
+							value={name}
+							onChange={(event) => setName(event.target.value)}
+							placeholder="Desktop"
+							className="h-10 bg-background/50"
+							autoFocus
+						/>
+					</FormRow>
+					<FormRow title={copy.root}>
+						<div className="flex w-full gap-2">
+							<Input
+								id="automatic-root"
+								value={rootPath}
+								onChange={(event) => setRootPath(event.target.value)}
+								placeholder="C:\\Users\\User\\Desktop"
+								className="h-10 bg-background/50 w-full"
+							/>
+							<Button type="button" variant="outline" className="h-10 px-4 shrink-0" onClick={() => void chooseRoot()}>
+								<FolderOpen className="mr-2 size-4" />
+								{copy.browse}
+							</Button>
+						</div>
+					</FormRow>
+				</div>
+			</div>
 
-						<Separator />
-						<section className="space-y-3">
-							<p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-								{copy.destination}
-							</p>
-							<div className="grid grid-cols-2 gap-3">
-								<div className="grid gap-2">
-									<Label>{copy.account}</Label>
-									<Select value={integrationAccount} onValueChange={setIntegrationAccount}>
-										<SelectTrigger><SelectValue /></SelectTrigger>
-										<SelectContent>
-											<SelectItem value="none">{copy.noAccount}</SelectItem>
-											{accounts.map((account) => (
-												<SelectItem key={account.id} value={String(account.id)}>
-													{getProvider(account.provider).name} · {account.label}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-								<div className="grid gap-2">
-									<Label htmlFor="automatic-branch">{copy.branch}</Label>
-									<Input id="automatic-branch" value={branch} onChange={(event) => setBranch(event.target.value)} />
-								</div>
-							</div>
+			<div className="flex flex-col gap-2">
+				<p className="text-sm font-medium">{copy.destination}</p>
+				<div className="rounded-2xl border border-border/50 bg-card p-6 divide-y divide-border/40 shadow-sm">
+					<FormRow title={copy.account}>
+						<Select value={destination} onValueChange={setDestination}>
+							<SelectTrigger className="h-10 bg-background/50 w-full"><SelectValue /></SelectTrigger>
+							<SelectContent>
+								<SelectItem value="none">{copy.noAccount}</SelectItem>
+								{accounts.map((account) => (
+									<SelectItem key={`git:${account.id}`} value={`git:${account.id}`}>
+										{getProvider(account.provider).name} · {account.label}
+									</SelectItem>
+								))}
+								{s3Accounts.map((account) => (
+									<SelectItem key={`s3:${account.id}`} value={`s3:${account.id}`}>
+										S3 · {account.label} · {account.bucket}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</FormRow>
+					{destination !== "none" && targetType === "git" ? (
+						<>
+							<FormRow title={copy.branch}>
+								<Input id="automatic-branch" className="h-10 bg-background/50" value={branch} onChange={(event) => setBranch(event.target.value)} />
+							</FormRow>
 							<ToggleRow
 								title={copy.autoRepositories}
 								description={copy.autoRepositoriesDescription}
 								checked={autoRepositories}
 								onCheckedChange={setAutoRepositories}
 							/>
-						</section>
+						</>
+					) : null}
+					{targetType === "s3" ? (
+						<FormRow title="S3 prefix">
+							<Input value={s3Prefix} onChange={(event) => setS3Prefix(event.target.value)} className="h-10 bg-background/50" placeholder="automatic-backups" />
+						</FormRow>
+					) : null}
+				</div>
+			</div>
 
-						<Separator />
-						<section className="space-y-2">
-							<p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-								{copy.schedule}
-							</p>
-							<ToggleRow title={copy.daily} checked={dailyEnabled} onCheckedChange={setDailyEnabled} />
-							{dailyEnabled ? (
-								<div className="grid max-w-[220px] gap-2 pb-2">
-									<Label htmlFor="automatic-time">{copy.dailyTime}</Label>
-									<Input id="automatic-time" type="time" value={backupTime} onChange={(event) => setBackupTime(event.target.value)} />
-								</div>
-							) : null}
-							<ToggleRow title={copy.onStartup} checked={backupOnStartup} onCheckedChange={setBackupOnStartup} />
-							<ToggleRow title={copy.continuous} checked={continuous} onCheckedChange={setContinuous} />
-							{continuous ? (
-								<div className="grid max-w-[220px] gap-2 pb-2">
-									<Label htmlFor="automatic-debounce">{copy.debounce}</Label>
-									<Input id="automatic-debounce" type="number" min={5} max={3600} value={debounceSeconds} onChange={(event) => setDebounceSeconds(Number(event.target.value))} />
-								</div>
-							) : null}
-							<ToggleRow title={copy.notifications} checked={notifications} onCheckedChange={setNotifications} />
-						</section>
+			<div className="flex flex-col gap-2">
+				<p className="text-sm font-medium">{copy.schedule}</p>
+				<div className="rounded-2xl border border-border/50 bg-card p-6 divide-y divide-border/40 shadow-sm">
+					<ToggleRow title={copy.daily} checked={dailyEnabled} onCheckedChange={setDailyEnabled} />
+					{dailyEnabled ? (
+						<FormRow title={copy.dailyTime}>
+							<Input id="automatic-time" className="h-10 bg-background/50 max-w-[200px]" type="time" value={backupTime} onChange={(event) => setBackupTime(event.target.value)} />
+						</FormRow>
+					) : null}
 
-						<Separator />
-						<section className="space-y-3">
-							<p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-								{copy.filters}
-							</p>
-							<div className="grid grid-cols-2 gap-3">
-								<div className="grid gap-2">
-									<Label>{copy.excludeProfile}</Label>
-									<Select value={excludeProfile} onValueChange={setExcludeProfile}>
-										<SelectTrigger><SelectValue /></SelectTrigger>
-										<SelectContent>
-											<SelectItem value="none">{copy.noExclude}</SelectItem>
-											{excludeProfiles.map((profile) => <SelectItem key={profile.id} value={String(profile.id)}>{profile.name}</SelectItem>)}
-										</SelectContent>
-									</Select>
-								</div>
-								<div className="grid gap-2">
-									<Label>{copy.aiAccount}</Label>
-									<Select value={aiAccount} onValueChange={(value) => { setAiAccount(value); if (value === "none") { setAiMajor(false); setAiFast(false); } }}>
-										<SelectTrigger><SelectValue /></SelectTrigger>
-										<SelectContent>
-											<SelectItem value="none">{copy.noAi}</SelectItem>
-											{aiAccounts.map((account) => <SelectItem key={account.id} value={String(account.id)}>{account.label} · {account.model}</SelectItem>)}
-										</SelectContent>
-									</Select>
-								</div>
-							</div>
-							<ToggleRow title={copy.aiMajor} checked={aiMajor} disabled={aiAccount === "none"} onCheckedChange={setAiMajor} />
-							<ToggleRow title={copy.aiFast} checked={aiFast} disabled={aiAccount === "none"} onCheckedChange={setAiFast} />
-							<ToggleRow title={copy.enabled} checked={enabled} onCheckedChange={setEnabled} />
-						</section>
+					<ToggleRow title={copy.onStartup} checked={backupOnStartup} onCheckedChange={setBackupOnStartup} />
 
-						{error ? <p className="text-sm text-destructive">{error}</p> : null}
-					</div>
+					<ToggleRow title={copy.continuous} checked={continuous} onCheckedChange={setContinuous} />
+					{continuous ? (
+						<FormRow title={copy.debounce}>
+							<Input id="automatic-debounce" className="h-10 bg-background/50 max-w-[200px]" type="number" min={5} max={3600} value={debounceSeconds} onChange={(event) => setDebounceSeconds(Number(event.target.value))} />
+						</FormRow>
+					) : null}
 
-					<DialogFooter>
-						<Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
-							{copy.cancel}
-						</Button>
-						<Button type="submit" disabled={!canSubmit}>
-							{submitting ? <Loader2 className="animate-spin" /> : null}
-							{submitting ? (rule ? copy.saving : copy.creating) : rule ? copy.save : copy.create}
-						</Button>
-					</DialogFooter>
-				</form>
-			</DialogContent>
-		</Dialog>
+					<ToggleRow title={copy.notifications} checked={notifications} onCheckedChange={setNotifications} />
+				</div>
+			</div>
+
+			<div className="flex flex-col gap-2">
+				<p className="text-sm font-medium">{copy.filters}</p>
+				<div className="rounded-2xl border border-border/50 bg-card p-6 divide-y divide-border/40 shadow-sm">
+					<FormRow title={copy.excludeProfile}>
+						<Select value={excludeProfile} onValueChange={setExcludeProfile}>
+							<SelectTrigger className="h-10 bg-background/50 w-full"><SelectValue /></SelectTrigger>
+							<SelectContent>
+								<SelectItem value="none">{copy.noExclude}</SelectItem>
+								{excludeProfiles.map((profile) => <SelectItem key={profile.id} value={String(profile.id)}>{profile.name}</SelectItem>)}
+							</SelectContent>
+						</Select>
+					</FormRow>
+					{targetType === "git" ? <FormRow title={copy.aiAccount}>
+						<Select value={aiAccount} onValueChange={(value) => { setAiAccount(value); if (value === "none") { setAiMajor(false); setAiFast(false); } }}>
+							<SelectTrigger className="h-10 bg-background/50 w-full"><SelectValue /></SelectTrigger>
+							<SelectContent>
+								<SelectItem value="none">{copy.noAi}</SelectItem>
+								{aiAccounts.map((account) => <SelectItem key={account.id} value={String(account.id)}>{account.label} · {account.model}</SelectItem>)}
+							</SelectContent>
+						</Select>
+					</FormRow> : null}
+					{targetType === "git" ? <ToggleRow title={copy.aiMajor} checked={aiMajor} disabled={aiAccount === "none"} onCheckedChange={setAiMajor} /> : null}
+					{targetType === "git" ? <ToggleRow title={copy.aiFast} checked={aiFast} disabled={aiAccount === "none"} onCheckedChange={setAiFast} /> : null}
+					<ToggleRow title={copy.enabled} checked={enabled} onCheckedChange={setEnabled} />
+				</div>
+			</div>
+
+			{error ? (
+				<div className="rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-sm font-medium text-destructive">
+					{error}
+				</div>
+			) : null}
+
+			<div className="sticky bottom-4 z-10 mt-8 flex items-center justify-end gap-3 rounded-2xl border border-border/50 bg-background/90 p-4 shadow-sm backdrop-blur-md">
+				<Button type="button" variant="ghost" className="h-10 px-6 rounded-full" onClick={onCancel} disabled={submitting}>
+					{copy.cancel}
+				</Button>
+				<Button type="submit" disabled={!canSubmit} className="h-10 px-8 rounded-full bg-foreground text-background shadow-sm hover:bg-foreground/90">
+					{submitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+					{submitting ? (rule ? copy.saving : copy.creating) : rule ? copy.save : copy.create}
+				</Button>
+			</div>
+		</form>
 	);
 }

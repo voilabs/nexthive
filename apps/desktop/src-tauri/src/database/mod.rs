@@ -13,6 +13,7 @@ pub mod integration_accounts;
 pub mod migrations;
 pub mod profiles;
 pub mod runs;
+pub mod s3_accounts;
 pub mod settings;
 pub mod snapshots;
 pub mod sources;

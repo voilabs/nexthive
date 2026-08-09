@@ -22,6 +22,8 @@ const MIGRATIONS: &[&str] = &[
     V12_AUTOMATIC_PROFILE_OWNERSHIP,
     V13_ANONYMOUS_TELEMETRY,
     V14_OPEN_LANGUAGE_TAGS,
+    V15_S3_BACKUPS,
+    V16_AUTOMATIC_PROFILE_S3,
 ];
 
 pub const fn latest_version() -> i64 {
@@ -350,9 +352,94 @@ DROP TABLE app_settings;
 ALTER TABLE app_settings_new RENAME TO app_settings;
 "#;
 
+const V15_S3_BACKUPS: &str = r#"
+CREATE TABLE s3_accounts (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    label       TEXT    NOT NULL,
+    endpoint    TEXT,
+    region      TEXT    NOT NULL,
+    bucket      TEXT    NOT NULL,
+    path_style  INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT    NOT NULL,
+    updated_at  TEXT    NOT NULL
+);
+
+ALTER TABLE backup_profiles
+    ADD COLUMN target_type TEXT NOT NULL DEFAULT 'git'
+        CHECK (target_type IN ('git', 's3'));
+ALTER TABLE backup_profiles
+    ADD COLUMN s3_account_id INTEGER REFERENCES s3_accounts(id) ON DELETE SET NULL;
+ALTER TABLE backup_profiles
+    ADD COLUMN s3_prefix TEXT;
+CREATE INDEX idx_backup_profiles_s3_account ON backup_profiles(s3_account_id);
+"#;
+
+const V16_AUTOMATIC_PROFILE_S3: &str = r#"
+ALTER TABLE automatic_profile_rules
+    ADD COLUMN target_type TEXT NOT NULL DEFAULT 'git'
+        CHECK (target_type IN ('git', 's3'));
+ALTER TABLE automatic_profile_rules
+    ADD COLUMN s3_account_id INTEGER REFERENCES s3_accounts(id) ON DELETE SET NULL;
+ALTER TABLE automatic_profile_rules
+    ADD COLUMN s3_prefix TEXT;
+CREATE INDEX idx_automatic_profile_rules_s3_account
+    ON automatic_profile_rules(s3_account_id);
+"#;
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn v16_keeps_existing_automatic_rules_on_git() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+        for migration in MIGRATIONS.iter().take(15) {
+            conn.execute_batch(migration).unwrap();
+        }
+        conn.pragma_update(None, "user_version", 15).unwrap();
+        conn.execute(
+            "INSERT INTO automatic_profile_rules (name, root_path, created_at, updated_at) \
+             VALUES ('Desktop', 'C:\\Desktop', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            [],
+        )
+        .unwrap();
+
+        run(&mut conn).unwrap();
+
+        let target: String = conn
+            .query_row(
+                "SELECT target_type FROM automatic_profile_rules",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(target, "git");
+    }
+
+    #[test]
+    fn v15_keeps_existing_profiles_on_git_and_adds_s3_storage() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.pragma_update(None, "foreign_keys", "ON").unwrap();
+        for migration in MIGRATIONS.iter().take(14) {
+            conn.execute_batch(migration).unwrap();
+        }
+        conn.pragma_update(None, "user_version", 14).unwrap();
+        conn.execute("INSERT INTO backup_profiles (name, branch, enabled, created_at, updated_at) VALUES ('Docs', 'main', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", []).unwrap();
+        run(&mut conn).unwrap();
+        let target: String = conn
+            .query_row("SELECT target_type FROM backup_profiles", [], |r| r.get(0))
+            .unwrap();
+        let s3_table: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='s3_accounts'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(target, "git");
+        assert_eq!(s3_table, 1);
+    }
 
     #[test]
     fn migrates_existing_github_accounts_without_losing_profile_links() {

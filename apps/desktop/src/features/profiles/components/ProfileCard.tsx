@@ -45,8 +45,9 @@ export function ProfileCard({ profile }: ProfileCardProps) {
       ? `${profile.repositoryOwner}/${profile.repositoryName}`
       : null;
   const isRunning = liveStage !== undefined;
-  const isConfigured =
-    profile.integrationAccountId !== null && repository !== null && sources.length > 0;
+  const isConfigured = sources.length > 0 && (profile.targetType === "s3"
+    ? profile.s3AccountId !== null
+    : profile.integrationAccountId !== null && repository !== null);
 
   const handleBackupNow = async () => {
     setError(null);
@@ -99,14 +100,14 @@ export function ProfileCard({ profile }: ProfileCardProps) {
             <span className="text-muted-foreground/30">&middot;</span>
             <span className="flex items-center gap-1.5">
               <Server className="h-3.5 w-3.5 text-muted-foreground/60" />
-              {linkedAccount
-                ? linkedAccount.label
-                : t("profileCard.noAccount")}
+              {profile.targetType === "s3"
+                ? "S3"
+                : linkedAccount?.label ?? t("profileCard.noAccount")}
             </span>
             <span className="text-muted-foreground/30">&middot;</span>
             <span className="flex items-center gap-1.5">
-              <GitBranch className="h-3.5 w-3.5 text-muted-foreground/60" />
-              {repository ?? t("profileCard.noRepository")}
+              {profile.targetType === "s3" ? <UploadCloud className="h-3.5 w-3.5 text-muted-foreground/60" /> : <GitBranch className="h-3.5 w-3.5 text-muted-foreground/60" />}
+              {profile.targetType === "s3" ? profile.s3Prefix ?? "nexthive" : repository ?? t("profileCard.noRepository")}
             </span>
           </div>
         </div>

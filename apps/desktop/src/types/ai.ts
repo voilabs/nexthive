@@ -1,7 +1,7 @@
 export type AiProvider =
 	| "openai"
 	| "openrouter"
-	| "anthropic"
+	| "claude"
 	| "ollama"
 	| "custom";
 

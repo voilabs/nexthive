@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager, PhysicalPosition, State};
 use tauri_plugin_autostart::ManagerExt;
 
 use crate::database::{app_settings, DB_FILE_NAME};
@@ -102,6 +102,24 @@ pub fn close_main_window(app: AppHandle) -> AppResult<()> {
 
 #[tauri::command]
 pub fn start_dragging_main_window(app: AppHandle) -> AppResult<()> {
-    main_window(&app)?.start_dragging()?;
+    let window = main_window(&app)?;
+    if window.is_maximized()? {
+        let cursor = window.cursor_position()?;
+        let maximized_position = window.outer_position()?;
+        let maximized_size = window.outer_size()?;
+        let horizontal_ratio = ((cursor.x - f64::from(maximized_position.x))
+            / f64::from(maximized_size.width))
+        .clamp(0.05, 0.95);
+        let titlebar_offset = (cursor.y - f64::from(maximized_position.y)).clamp(0.0, 64.0);
+
+        window.unmaximize()?;
+
+        let restored_size = window.outer_size()?;
+        window.set_position(PhysicalPosition::new(
+            (cursor.x - f64::from(restored_size.width) * horizontal_ratio).round() as i32,
+            (cursor.y - titlebar_offset).round() as i32,
+        ))?;
+    }
+    window.start_dragging()?;
     Ok(())
 }

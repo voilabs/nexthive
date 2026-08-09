@@ -47,10 +47,63 @@ pub struct BackupProfile {
     pub branch: String,
     pub enabled: bool,
     pub integration_account_id: Option<i64>,
+    pub target_type: BackupTargetType,
+    pub s3_account_id: Option<i64>,
+    pub s3_prefix: Option<String>,
     pub automatic_profile_rule_id: Option<i64>,
     pub automatic_profile_rule_name: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BackupTargetType {
+    Git,
+    S3,
+}
+
+impl BackupTargetType {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Git => "git",
+            Self::S3 => "s3",
+        }
+    }
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "git" => Some(Self::Git),
+            "s3" => Some(Self::S3),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct S3Account {
+    pub id: i64,
+    pub label: String,
+    pub endpoint: Option<String>,
+    pub region: String,
+    pub bucket: String,
+    pub path_style: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateS3AccountInput {
+    pub label: String,
+    #[serde(default)]
+    pub endpoint: Option<String>,
+    pub region: String,
+    pub bucket: String,
+    pub access_key_id: String,
+    pub secret_access_key: String,
+    #[serde(default)]
+    pub path_style: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -165,6 +218,9 @@ pub struct AutomaticProfileRule {
     pub root_path: String,
     pub enabled: bool,
     pub integration_account_id: Option<i64>,
+    pub target_type: BackupTargetType,
+    pub s3_account_id: Option<i64>,
+    pub s3_prefix: Option<String>,
     pub branch: String,
     pub exclude_profile_id: Option<i64>,
     pub backup_time: Option<String>,
@@ -190,6 +246,12 @@ pub struct SaveAutomaticProfileRuleInput {
     pub root_path: String,
     #[serde(default)]
     pub integration_account_id: Option<i64>,
+    #[serde(default)]
+    pub target_type: Option<BackupTargetType>,
+    #[serde(default)]
+    pub s3_account_id: Option<i64>,
+    #[serde(default)]
+    pub s3_prefix: Option<String>,
     #[serde(default)]
     pub branch: Option<String>,
     #[serde(default)]
@@ -385,9 +447,7 @@ pub fn validate_language(value: &str) -> bool {
     let Some(primary) = parts.next() else {
         return false;
     };
-    if !(2..=3).contains(&primary.len())
-        || !primary.chars().all(|c| c.is_ascii_lowercase())
-    {
+    if !(2..=3).contains(&primary.len()) || !primary.chars().all(|c| c.is_ascii_lowercase()) {
         return false;
     }
     parts.all(|part| {
@@ -444,6 +504,8 @@ pub struct UpdateAppSettingsInput {
 pub struct CreateBackupProfileInput {
     pub name: String,
     #[serde(default)]
+    pub target_type: Option<BackupTargetType>,
+    #[serde(default)]
     pub repository_owner: Option<String>,
     #[serde(default)]
     pub repository_name: Option<String>,
@@ -453,6 +515,10 @@ pub struct CreateBackupProfileInput {
     pub branch: Option<String>,
     #[serde(default)]
     pub integration_account_id: Option<i64>,
+    #[serde(default)]
+    pub s3_account_id: Option<i64>,
+    #[serde(default)]
+    pub s3_prefix: Option<String>,
 }
 
 /// Fields left as `None` are not modified. Double-option fields treat an
@@ -472,9 +538,15 @@ pub struct UpdateBackupProfileInput {
     pub branch: Option<String>,
     #[serde(default)]
     pub enabled: Option<bool>,
+    #[serde(default)]
+    pub target_type: Option<BackupTargetType>,
     /// Omitted = unchanged, `null` = unlink, number = link to that account.
     #[serde(default, deserialize_with = "double_option")]
     pub integration_account_id: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub s3_account_id: Option<Option<i64>>,
+    #[serde(default, deserialize_with = "double_option")]
+    pub s3_prefix: Option<Option<String>>,
 }
 
 #[derive(Debug, Default, Deserialize)]

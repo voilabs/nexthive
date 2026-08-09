@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FoldersTab } from "@/features/profiles/components/detail/FoldersTab";
 import { HistoryTab } from "@/features/profiles/components/detail/HistoryTab";
 import { RepositoryTab } from "@/features/profiles/components/detail/RepositoryTab";
+import { S3DestinationTab } from "@/features/profiles/components/detail/S3DestinationTab";
 import { SettingsTab } from "@/features/profiles/components/detail/SettingsTab";
 import { profilesApi } from "@/features/profiles/api";
 import { useIntegrationsStore } from "@/stores/integrations";
@@ -168,8 +169,8 @@ export function ProfileDetailPage() {
             {t("profileDetail.tabs.folders")}
           </TabsTrigger>
           <TabsTrigger value="repository">
-            <GitBranch />
-            {t("profileDetail.tabs.repository")}
+            {profile.targetType === "s3" ? <UploadCloud /> : <GitBranch />}
+            {profile.targetType === "s3" ? "S3 destination" : t("profileDetail.tabs.repository")}
           </TabsTrigger>
           <TabsTrigger value="settings">
             <Settings2 />
@@ -184,7 +185,7 @@ export function ProfileDetailPage() {
           <FoldersTab profile={profile} />
         </TabsContent>
         <TabsContent value="repository">
-          <RepositoryTab profile={profile} />
+          {profile.targetType === "s3" ? <S3DestinationTab profile={profile} /> : <RepositoryTab profile={profile} />}
         </TabsContent>
         <TabsContent value="settings">
           <SettingsTab profile={profile} />

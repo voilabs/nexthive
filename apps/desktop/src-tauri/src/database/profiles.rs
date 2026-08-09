@@ -12,7 +12,8 @@ use crate::models::{BackupProfile, CreateBackupProfileInput, UpdateBackupProfile
 const PROFILE_COLUMNS: &str = "profile.id, profile.name, profile.repository_owner, \
      profile.repository_name, profile.repository_url, profile.branch, profile.enabled, \
      profile.integration_account_id, profile.automatic_profile_rule_id, \
-     automatic_rule.name AS automatic_profile_rule_name, profile.created_at, profile.updated_at";
+     automatic_rule.name AS automatic_profile_rule_name, profile.target_type, \
+     profile.s3_account_id, profile.s3_prefix, profile.created_at, profile.updated_at";
 
 const PROFILE_TABLES: &str = "backup_profiles AS profile \
      LEFT JOIN automatic_profile_rules AS automatic_rule \
@@ -30,6 +31,12 @@ fn row_to_profile(row: &Row) -> rusqlite::Result<BackupProfile> {
         branch: row.get("branch")?,
         enabled: row.get::<_, i64>("enabled")? != 0,
         integration_account_id: row.get("integration_account_id")?,
+        target_type: crate::models::BackupTargetType::parse(
+            row.get::<_, String>("target_type")?.as_str(),
+        )
+        .ok_or_else(|| rusqlite::Error::InvalidQuery)?,
+        s3_account_id: row.get("s3_account_id")?,
+        s3_prefix: row.get("s3_prefix")?,
         automatic_profile_rule_id: row.get("automatic_profile_rule_id")?,
         automatic_profile_rule_name: row.get("automatic_profile_rule_name")?,
         created_at: row.get::<_, DateTime<Utc>>("created_at")?,
@@ -120,14 +127,25 @@ fn create_with_owner(
             return Err(AppError::NotFound("Integration account"));
         }
     }
+    let target_type = input
+        .target_type
+        .unwrap_or(crate::models::BackupTargetType::Git);
+    if target_type == crate::models::BackupTargetType::S3 {
+        let account_id = input.s3_account_id.ok_or_else(|| {
+            AppError::Validation("Choose an S3 destination for this profile.".into())
+        })?;
+        if !crate::database::s3_accounts::exists(conn, account_id)? {
+            return Err(AppError::NotFound("S3 account"));
+        }
+    }
     let now = Utc::now();
 
     let tx = conn.transaction()?;
     tx.execute(
         "INSERT INTO backup_profiles \
              (name, repository_owner, repository_name, repository_url, branch, enabled, \
-              integration_account_id, automatic_profile_rule_id, created_at, updated_at) \
-         VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6, ?7, ?8, ?8)",
+              integration_account_id, automatic_profile_rule_id, target_type, s3_account_id, s3_prefix, created_at, updated_at) \
+         VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6, ?7, ?8, ?9, ?10, ?11, ?11)",
         params![
             name,
             normalize(&input.repository_owner),
@@ -136,6 +154,9 @@ fn create_with_owner(
             branch,
             input.integration_account_id,
             automatic_profile_rule_id,
+            target_type.as_str(),
+            input.s3_account_id,
+            normalize(&input.s3_prefix),
             now,
         ],
     )?;
@@ -180,6 +201,7 @@ pub fn update(
         None => existing.repository_url,
     };
     let enabled = input.enabled.unwrap_or(existing.enabled);
+    let target_type = input.target_type.unwrap_or(existing.target_type);
     let integration_account_id = match input.integration_account_id {
         Some(link) => {
             if let Some(account_id) = link {
@@ -191,13 +213,28 @@ pub fn update(
         }
         None => existing.integration_account_id,
     };
+    let s3_account_id = match input.s3_account_id {
+        Some(link) => {
+            if let Some(id) = link {
+                if !crate::database::s3_accounts::exists(conn, id)? {
+                    return Err(AppError::NotFound("S3 account"));
+                }
+            }
+            link
+        }
+        None => existing.s3_account_id,
+    };
+    let s3_prefix = match &input.s3_prefix {
+        Some(value) => normalize(value).map(str::to_owned),
+        None => existing.s3_prefix,
+    };
 
     conn.execute(
         "UPDATE backup_profiles SET \
              name = ?1, repository_owner = ?2, repository_name = ?3, \
              repository_url = ?4, branch = ?5, enabled = ?6, \
-             integration_account_id = ?7, updated_at = ?8 \
-         WHERE id = ?9",
+             integration_account_id = ?7, target_type = ?8, s3_account_id = ?9, s3_prefix = ?10, updated_at = ?11 \
+         WHERE id = ?12",
         params![
             name,
             repository_owner,
@@ -206,6 +243,9 @@ pub fn update(
             branch,
             enabled,
             integration_account_id,
+            target_type.as_str(),
+            s3_account_id,
+            s3_prefix,
             Utc::now(),
             id,
         ],
@@ -253,6 +293,9 @@ mod tests {
             repository_url: None,
             branch: None,
             integration_account_id: None,
+            target_type: None,
+            s3_account_id: None,
+            s3_prefix: None,
         }
     }
 

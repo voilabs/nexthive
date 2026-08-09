@@ -1,6 +1,6 @@
 [package]
 name = "nexthive"
-version = "0.1.1"
+version = "0.1.2"
 description = "NextHive — local-first backup manager with versioned Git provider backups"
 authors = ["VoiLabs"]
 homepage = "https://voilabs.com"
@@ -43,6 +43,7 @@ base64 = "0.22"
 sha2 = "0.10"
 dunce = "1"
 notify = "8.2"
+rust-s3 = { version = "0.37.2", default-features = false, features = ["sync-rustls-tls"] }
 
 # RSA key generation is unusably slow with unoptimized bigint math; keep
 # these crates optimized even in dev builds.

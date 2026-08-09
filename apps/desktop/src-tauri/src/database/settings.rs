@@ -187,6 +187,9 @@ mod tests {
                     repository_url: None,
                     branch: None,
                     integration_account_id: None,
+                    target_type: None,
+                    s3_account_id: None,
+                    s3_prefix: None,
                 },
             )
             .map(|profile| profile.id)
