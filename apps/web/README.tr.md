@@ -35,4 +35,17 @@ Site İngilizce ve Türkçe yayınlanır. Diller Next.js'in yerleşik alt yol y�
 - Başlıktaki dil seçici `src/components/site/LanguageSwitcher.js` dosyasındadır. Seçenekler aynı sayfanın diğer dildeki adresine giden gerçek bağlantılardır ve seçim `NEXT_LOCALE` çerezine yazılır.
 - Her sayfa `LocaleAlternates` bileşeniyle `canonical` ve `hreflang` bağlantılarını yayınlar.
 
+### Otomatik algılama
+
+`src/proxy.js`, henüz dil seçmemiş ziyaretçiler için dili belirler: ön eki olmayan bir adrese gelen istek, `Accept-Language` Türkçeyi tercih ediyorsa `/tr` adresine yönlendirilir. Eşleşme dil alt etiketi üzerinden yapılır; böylece `tr-TR` ve `tr-CY` de Türkçe sayılır. Next.js'in kendi `localeDetection` özelliği etiketin tamamını karşılaştırdığı için bunları kaçırır — bu yüzden `next.config.mjs` içinde kapalıdır.
+
+Öncelik sırası:
+
+1. URL'deki açık dil (`/tr/...`) — asla yönlendirilmez.
+2. Dil seçicinin yazdığı `NEXT_LOCALE` çerezi.
+3. `Accept-Language` başlığı.
+4. İngilizce.
+
+API rotaları, `_next` iç dosyaları ve uzantılı dosyalar eşleşmenin dışında tutulur.
+
 Yeni bir dil eklemek için sözlük dosyasını oluşturun, `src/i18n/index.js` içindeki `DICTIONARIES` ve `LOCALES` değerlerine ekleyin ve `next.config.mjs` içindeki `i18n.locales` listesini genişletin.

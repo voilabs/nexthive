@@ -35,4 +35,17 @@ The site ships in English and Turkish. Locales are separated by Next.js sub-path
 - The header language dropdown is `src/components/site/LanguageSwitcher.js`. Its options are real links to the same page in the other locale, and the choice is written to the `NEXT_LOCALE` cookie.
 - Every page emits `canonical` and `hreflang` links through the `LocaleAlternates` component.
 
+### Automatic detection
+
+`src/proxy.js` picks the language for visitors who have not chosen one: a request to an unprefixed path is redirected to `/tr` when `Accept-Language` prefers Turkish. It matches on the language subtag, so `tr-TR` and `tr-CY` count as Turkish — Next.js' own `localeDetection` compares whole tags and misses those, which is why it is disabled in `next.config.mjs`.
+
+The order of precedence is:
+
+1. An explicit locale in the URL (`/tr/...`) — never redirected.
+2. The `NEXT_LOCALE` cookie written by the language switcher.
+3. The `Accept-Language` header.
+4. English.
+
+API routes, `_next` internals and files with an extension are excluded from the matcher.
+
 To add a language, create the dictionary, register it in `DICTIONARIES` and `LOCALES` in `src/i18n/index.js`, and extend `i18n.locales` in `next.config.mjs`.

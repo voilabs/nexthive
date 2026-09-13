@@ -19,7 +19,7 @@ const LOCALE_COOKIE = "NEXT_LOCALE";
 
 export const config = {
   /* Skip API routes, Next internals and anything with a file extension. */
-  matcher: ["/((?!api|_next/|.*\\.).*)"],
+  matcher: ["/", "/((?!api|_next/|.*\\.).*)"],
 };
 
 /* Highest-quality Accept-Language entry whose language subtag we publish. */
@@ -43,7 +43,6 @@ function detectLocale(header) {
 }
 
 export function proxy(request) {
-  console.log("[proxy]", request.nextUrl.pathname, request.nextUrl.locale, request.headers.get("accept-language"));
   const { nextUrl } = request;
 
   /* A prefixed URL (/tr/...) is already an explicit request for that locale. */
