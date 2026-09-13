@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Icon } from "@/components/site/Icon";
+import { LanguageSwitcher } from "@/components/site/LanguageSwitcher";
+import { useI18n } from "@/i18n";
 
 export const VERSION = "0.1.0";
 export const RELEASE_URL = `https://github.com/voilabs/nexthive/releases/download/v${VERSION}/NextHive_${VERSION}_x64-setup.exe`;
@@ -52,6 +54,7 @@ export function Kicker({ children, dark = false }) {
  * actual installer file (used on the download page itself).
  */
 export function DownloadButton({ dark = false, direct = false, children }) {
+  const { t } = useI18n();
   const className = `inline-flex items-center gap-2 h-10 px-4 text-sm font-semibold transition-transform hover:-translate-y-0.5 ${
     dark
       ? "bg-white text-[#0a0d0b] hover:bg-[#f1f1ee]"
@@ -60,7 +63,7 @@ export function DownloadButton({ dark = false, direct = false, children }) {
   const label = children ?? (
     <>
       <Icon name="windows" size={16} strokeWidth={1.4} />
-      Download for Windows
+      {t.cta.downloadWindows}
     </>
   );
   if (direct) {
@@ -143,36 +146,39 @@ export function Band({
   );
 }
 
+/* Hash targets are stable; only the visible label comes from the dictionary. */
 const NAV_LINKS = [
-  ["/#product", "Product"],
-  ["/#how-it-works", "How it works"],
-  ["/#integrations", "Integrations"],
-  ["/#security", "Security"],
-  ["/#faq", "FAQ"],
+  ["/#product", "product"],
+  ["/#how-it-works", "how"],
+  ["/#integrations", "integrations"],
+  ["/#security", "security"],
+  ["/#faq", "faq"],
 ];
 
 export function SiteNav() {
+  const { t } = useI18n();
   return (
     <Band>
       <header className="h-16 px-6 md:px-10 flex items-center justify-between">
-        <Link href="/" aria-label="NextHive home" className="flex items-center">
+        <Link href="/" aria-label={t.nav.home} className="flex items-center">
           <Brand compact />
         </Link>
         <nav
           className="hidden lg:flex items-center gap-7 text-[13px] font-medium text-[#5f665f]"
-          aria-label="Main navigation"
+          aria-label={t.nav.main}
         >
-          {NAV_LINKS.map(([href, label]) => (
+          {NAV_LINKS.map(([href, key]) => (
             <Link
               key={href}
               href={href}
               className="hover:text-[#101410] transition-colors"
             >
-              {label}
+              {t.nav.links[key]}
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          <LanguageSwitcher />
           <a
             className="hidden md:inline-flex items-center gap-2 h-9 px-3.5 border border-black/10 bg-white text-[#101410] text-[13px] font-semibold transition-colors hover:bg-[#faf9f7]"
             href={GITHUB_URL}
@@ -180,14 +186,14 @@ export function SiteNav() {
             rel="noreferrer"
           >
             <Icon name="github" size={15} />
-            GitHub
+            {t.nav.github}
           </a>
           <Link
             className="inline-flex items-center gap-2 h-9 px-3.5 bg-[#101410] text-white text-[13px] font-semibold transition-transform hover:-translate-y-0.5"
             href="/download"
           >
             <Icon name="windows" size={15} strokeWidth={1.4} />
-            Download
+            {t.nav.download}
           </Link>
         </div>
       </header>
@@ -196,20 +202,21 @@ export function SiteNav() {
 }
 
 export function SiteFooter({ directDownload = false }) {
+  const { t } = useI18n();
   return (
     <footer className="relative bg-[#0a0d0b] text-[#dce2eb] overflow-hidden">
       <div className="mx-auto max-w-[1216px] px-6 md:px-10">
         <div className="grid lg:grid-cols-[1.5fr_1fr] gap-10 items-end py-16 md:py-24 border-b border-white/10">
           <h2 className="font-display text-4xl md:text-6xl font-medium tracking-tight leading-[1.05] text-balance">
-            Stop losing versions
+            {t.footer.headlineTop}
             <br />
-            of your work.
+            {t.footer.headlineBottom}
           </h2>
           <div className="flex flex-wrap gap-4 lg:justify-end">
             <DownloadButton dark direct={directDownload} />
             <GhostButton href={GITHUB_URL} external>
               <Icon name="github" size={15} />
-              Star on GitHub
+              {t.footer.star}
             </GhostButton>
           </div>
         </div>
@@ -218,35 +225,35 @@ export function SiteFooter({ directDownload = false }) {
           <div>
             <Brand onDark />
             <p className="mt-4 text-[#717c8d] text-sm max-w-[320px] leading-relaxed">
-              Quiet, inspectable backups under your control. Built by VoiLabs.
+              {t.footer.blurb}
             </p>
           </div>
           <div className="flex gap-16">
             <div>
               <strong className="block text-[#f1f4f8] text-xs mb-4 font-grotesk tracking-[0.14em] uppercase">
-                Product
+                {t.footer.productHeading}
               </strong>
               <div className="flex flex-col gap-3 text-[13px] text-[#788393]">
-                {NAV_LINKS.slice(0, 4).map(([href, label]) => (
+                {NAV_LINKS.slice(0, 4).map(([href, key]) => (
                   <Link
                     key={href}
                     href={href}
                     className="hover:text-[#75e9a1] transition-colors"
                   >
-                    {label}
+                    {t.nav.links[key]}
                   </Link>
                 ))}
                 <Link
                   href="/download"
                   className="hover:text-[#75e9a1] transition-colors"
                 >
-                  Download
+                  {t.footer.download}
                 </Link>
               </div>
             </div>
             <div>
               <strong className="block text-[#f1f4f8] text-xs mb-4 font-grotesk tracking-[0.14em] uppercase">
-                Project
+                {t.footer.projectHeading}
               </strong>
               <div className="flex flex-col gap-3 text-[13px] text-[#788393]">
                 <a
@@ -255,7 +262,7 @@ export function SiteFooter({ directDownload = false }) {
                   rel="noreferrer"
                   className="hover:text-[#75e9a1] transition-colors"
                 >
-                  GitHub
+                  {t.footer.github}
                 </a>
                 <a
                   href={`${GITHUB_URL}/releases`}
@@ -263,7 +270,7 @@ export function SiteFooter({ directDownload = false }) {
                   rel="noreferrer"
                   className="hover:text-[#75e9a1] transition-colors"
                 >
-                  Releases
+                  {t.footer.releases}
                 </a>
                 <a
                   href={`${GITHUB_URL}/blob/main/CHANGELOG.md`}
@@ -271,7 +278,7 @@ export function SiteFooter({ directDownload = false }) {
                   rel="noreferrer"
                   className="hover:text-[#75e9a1] transition-colors"
                 >
-                  Changelog
+                  {t.footer.changelog}
                 </a>
               </div>
             </div>
@@ -279,7 +286,7 @@ export function SiteFooter({ directDownload = false }) {
         </div>
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 py-6 border-t border-white/10 text-xs text-[#5e6878]">
-          <span>© 2026 VoiLabs. NextHive is open source software.</span>
+          <span>{t.footer.copyright}</span>
           <a
             href="https://voilabs.com"
             target="_blank"

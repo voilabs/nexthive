@@ -20,6 +20,7 @@ import {
   SiteNav,
   VERSION,
 } from "@/components/site/ui";
+import { useI18n } from "@/i18n";
 
 function SectionHead({ kicker, title, copy, center = false }) {
   return (
@@ -39,78 +40,35 @@ function SectionHead({ kicker, title, copy, center = false }) {
   );
 }
 
-const HERO_TABS = [
-  "Dashboard",
-  "Backup history",
-  "Problem files",
-  "Schedule",
-  "Destinations",
-];
-
-const HERO_ROWS = [
-  ["Documents", "Personal", "12,402", "37 changed", "SHA-256 verified", "done"],
-  [
-    "Projects / clients",
-    "Work",
-    "8,114",
-    "112 changed",
-    "SHA-256 verified",
-    "done",
-  ],
-  [
-    "Design / brand",
-    "Work",
-    "2,930",
-    "6 changed",
-    "hashing changed files",
-    "running",
-  ],
-  [
-    "Finance / 2026",
-    "Personal",
-    "1,204",
-    "2 changed",
-    "SHA-256 verified",
-    "done",
-  ],
-  [
-    "Photos / family",
-    "Personal",
-    "24,551",
-    "418 changed",
-    "waiting for turn",
-    "queued",
-  ],
-  ["Research / notes", "Personal", "3,388", "no changes", "up to date", "done"],
-];
-
-function StatusChip({ state }) {
+function StatusChip({ state, labels }) {
   if (state === "running") {
     return (
       <span className="font-display italic text-[13px] text-[#17714a]">
-        Backing up…
+        {labels.running}
       </span>
     );
   }
   if (state === "queued") {
     return (
       <span className="inline-flex px-2 py-0.5 rounded bg-black/5 text-[#6b716b] text-[11px] font-semibold">
-        Queued
+        {labels.queued}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#e2f5e8] text-[#177245] text-[11px] font-semibold">
-      <Icon name="check" size={11} strokeWidth={2.2} /> Backed up
+      <Icon name="check" size={11} strokeWidth={2.2} /> {labels.done}
     </span>
   );
 }
 
 function HeroMock() {
+  const { t } = useI18n();
+  const mock = t.home.mock;
   return (
     <div className="w-full rounded-t-xl border border-b-0 border-black/10 overflow-hidden shadow-[0_-12px_48px_rgba(16,20,16,0.05)]">
       <div className="flex overflow-x-auto bg-[#eceae5]">
-        {HERO_TABS.map((tab, i) => (
+        {mock.tabs.map((tab, i) => (
           <span
             key={tab}
             className={`flex-1 whitespace-nowrap px-5 py-3 text-xs font-semibold border-r border-black/8 last:border-r-0 flex items-center justify-center gap-2 ${
@@ -137,11 +95,11 @@ function HeroMock() {
               <span className="w-2.5 h-2.5 rounded-full bg-[#e4e4e0]" />
             </div>
             <span className="text-xs font-semibold text-[#40463f]">
-              NextHive — 6 profiles · 08 Aug 2026, 09:04
+              {mock.titleBar}
             </span>
           </div>
           <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#101410] text-white text-[11px] font-semibold">
-            <Icon name="commit" size={12} /> Run all
+            <Icon name="commit" size={12} /> {mock.runAll}
           </span>
         </div>
 
@@ -149,14 +107,7 @@ function HeroMock() {
           <table className="w-full min-w-[760px] text-left text-[13px]">
             <thead>
               <tr className="border-b border-black/8">
-                {[
-                  "Folder",
-                  "Profile",
-                  "Files",
-                  "Last run",
-                  "Verification",
-                  "Status",
-                ].map((h) => (
+                {mock.columns.map((h) => (
                   <th
                     key={h}
                     className="px-4 py-2.5 font-grotesk text-[10px] font-semibold tracking-[0.14em] uppercase text-[#9aa09a]"
@@ -167,30 +118,28 @@ function HeroMock() {
               </tr>
             </thead>
             <tbody>
-              {HERO_ROWS.map(
-                ([folder, profile, files, changes, verify, state]) => (
-                  <tr
-                    key={folder}
-                    className="border-b border-black/5 last:border-b-0"
-                  >
-                    <td className="px-4 py-3 font-semibold flex items-center gap-2.5">
-                      <span className="text-[#8d948d]">
-                        <Icon name="folder" size={15} />
-                      </span>
-                      {folder}
-                    </td>
-                    <td className="px-4 py-3 text-[#6b716b]">{profile}</td>
-                    <td className="px-4 py-3 text-[#6b716b] font-mono text-xs">
-                      {files}
-                    </td>
-                    <td className="px-4 py-3 text-[#6b716b]">{changes}</td>
-                    <td className="px-4 py-3 text-[#6b716b]">{verify}</td>
-                    <td className="px-4 py-3">
-                      <StatusChip state={state} />
-                    </td>
-                  </tr>
-                ),
-              )}
+              {mock.rows.map((row) => (
+                <tr
+                  key={row.folder}
+                  className="border-b border-black/5 last:border-b-0"
+                >
+                  <td className="px-4 py-3 font-semibold flex items-center gap-2.5">
+                    <span className="text-[#8d948d]">
+                      <Icon name="folder" size={15} />
+                    </span>
+                    {row.folder}
+                  </td>
+                  <td className="px-4 py-3 text-[#6b716b]">{row.profile}</td>
+                  <td className="px-4 py-3 text-[#6b716b] font-mono text-xs">
+                    {row.files}
+                  </td>
+                  <td className="px-4 py-3 text-[#6b716b]">{row.changes}</td>
+                  <td className="px-4 py-3 text-[#6b716b]">{row.verify}</td>
+                  <td className="px-4 py-3">
+                    <StatusChip state={row.state} labels={mock.status} />
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -199,65 +148,19 @@ function HeroMock() {
   );
 }
 
-const PROBLEMS = [
-  "Copy-paste versions multiply until none of them is the truth",
-  "One-off archives cannot show what changed, or when",
-  "Cloud sync overwrites history instead of keeping it",
-  "You find out a backup failed only when you need it",
+/* Provider marks, paired with the localized names by position. */
+const AVAILABLE_ICONS = [
+  <FaGithub key="gh" size={18} />,
+  <FaGitlab key="gl" size={18} />,
+  <SiGitea key="gt" size={18} />,
+  <SiCodeberg key="cb" size={18} />,
 ];
 
-const MESSY_FILES = [
-  ["report-final.docx", "12 Mar 2026"],
-  ["report-final-v2.docx", "03 Apr 2026"],
-  ["report-FINAL-real.docx", "03 Apr 2026"],
-  ["report-final-v2 (copy).docx", "date unknown"],
-  ["backup-2025.zip", "contents unknown"],
-];
-
-const STEPS = [
-  {
-    number: "01",
-    title: "Start with any folder",
-    copy: "Build a profile around Documents, client work, or anything worth protecting. Sources are read, never rewritten.",
-  },
-  {
-    number: "02",
-    title: "Let the scan decide",
-    copy: "Fast metadata comparison skips the unchanged; SHA-256 re-hashes only what actually moved.",
-  },
-  {
-    number: "03",
-    title: "Push, then confirm",
-    copy: "Changes become a dated, readable Git commit. A run counts as successful only after the private remote accepts it.",
-  },
-];
-
-const RUN_FEED = [
-  {
-    time: "02:00",
-    text: "Scheduled run missed — machine was asleep",
-    chip: null,
-    muted: true,
-  },
-  {
-    time: "09:04",
-    text: "Caught up automatically on wake",
-    chip: "37 files",
-    muted: false,
-  },
-  {
-    time: "09:04",
-    text: "Commit written: 2026-08-08",
-    chip: "readable history",
-    muted: false,
-  },
-  {
-    time: "09:05",
-    text: "Pushed to private remote",
-    chip: "confirmed",
-    muted: false,
-    ok: true,
-  },
+const PLANNED_ICONS = [
+  <FaGoogleDrive key="gd" size={18} />,
+  <FaYandex key="yd" size={18} />,
+  <SiMega key="mega" size={18} />,
+  <FaServer key="sf" size={18} />,
 ];
 
 const ODOMETER = [
@@ -273,50 +176,18 @@ const ODOMETER = [
   { id: "d8", ch: "0" },
 ];
 
-const FAQS = [
-  {
-    q: "What is NextHive?",
-    a: "A local-first Windows desktop app that watches the folders you choose, records only what changed, and builds a readable, dated history in private Git repositories you control.",
-  },
-  {
-    q: "Does it touch my original folders?",
-    a: "No. Source folders are read, never written. Changed contents are copied into a managed workspace, so no .git folder ever appears next to your files.",
-  },
-  {
-    q: "Do I need Git installed?",
-    a: "No. NextHive embeds libgit2 and performs every Git operation itself — no shell commands, no separate installation.",
-  },
-  {
-    q: "Where do my backups live?",
-    a: "In repositories under accounts you own — GitHub, GitLab, Gitea, Forgejo, or Codeberg. NextHive creates them private by default, or you pick an existing private repository.",
-  },
-  {
-    q: "Is my data encrypted?",
-    a: "Transport is HTTPS and tokens live in the Windows credential vault. A private Git repository is access-controlled storage, not end-to-end encrypted storage — NextHive states that boundary instead of blurring it.",
-  },
-  {
-    q: "What does it cost?",
-    a: "NextHive is open source and free. There is no server, no account, and no subscription — your Git provider's storage is the only storage involved.",
-  },
-];
-
 export default function Home() {
+  const { t } = useI18n();
+  const home = t.home;
   return (
     <div className="min-h-screen bg-[#edece8] text-[#101410] font-sans overflow-x-hidden">
       <Head>
-        <title>NextHive — Versioned backups you control</title>
-        <meta
-          name="description"
-          content="NextHive is a local-first Windows backup app that watches your folders, creates readable dated Git history, and syncs it to private repositories you control."
-        />
-        <meta
-          property="og:title"
-          content="NextHive — Versioned backups you control"
-          key="title"
-        />
+        <title>{home.meta.title}</title>
+        <meta name="description" content={home.meta.description} />
+        <meta property="og:title" content={home.meta.ogTitle} key="title" />
         <meta
           property="og:description"
-          content="Quiet, inspectable desktop backups to private repositories you own."
+          content={home.meta.ogDescription}
           key="description"
         />
         <meta name="theme-color" content="#f6f5f2" />
@@ -329,7 +200,7 @@ export default function Home() {
         className="sr-only focus:not-sr-only focus:fixed focus:z-[100] focus:top-3 focus:left-3 focus:p-3 focus:bg-[#75e9a1] focus:text-[#07110b]"
         href="#main-content"
       >
-        Skip to content
+        {t.nav.skip}
       </a>
 
       <SiteNav />
@@ -352,40 +223,34 @@ export default function Home() {
                     className="w-1.5 h-1.5 rounded-full bg-[#177245]"
                     aria-hidden="true"
                   />
-                  NextHive {VERSION} · Early access for Windows
+                  NextHive {VERSION} · {home.hero.badge}
                 </p>
                 <h1 className="font-display text-[44px] md:text-6xl lg:text-[64px] font-medium tracking-tight leading-[1.04] text-balance">
-                  Your files change.
+                  {home.hero.titleTop}
                   <br />
-                  <span className="text-[#17714a]">NextHive remembers.</span>
+                  <span className="text-[#17714a]">
+                    {home.hero.titleBottom}
+                  </span>
                 </h1>
                 <div className="mt-9 flex flex-wrap items-center gap-4">
                   <DownloadButton />
                   <GhostButton href={GITHUB_URL} external light>
-                    Explore the source
+                    {home.hero.exploreSource}
                     <Icon name="arrow" size={15} />
                   </GhostButton>
                 </div>
               </div>
               <div className="lg:justify-self-end lg:max-w-sm lg:pt-12">
                 <p className="text-[15px] md:text-base text-[#5f665f] leading-relaxed">
-                  A local-first desktop app that watches your folders, records
-                  only what changed, and builds a readable history in private
-                  Git repositories you control.
+                  {home.hero.copy}
                 </p>
                 <ul className="mt-6 space-y-2.5 text-xs font-medium text-[#6b716b]">
-                  <li className="flex items-center gap-2">
-                    <Icon name="check" size={13} className="text-[#177245]" />{" "}
-                    No Git installation required
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Icon name="check" size={13} className="text-[#177245]" />{" "}
-                    Source folders stay untouched
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Icon name="check" size={13} className="text-[#177245]" />{" "}
-                    New repositories are private
-                  </li>
+                  {home.hero.points.map((point) => (
+                    <li key={point} className="flex items-center gap-2">
+                      <Icon name="check" size={13} className="text-[#177245]" />{" "}
+                      {point}
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -400,14 +265,9 @@ export default function Home() {
       {/* FACT STRIP */}
       <Band>
         <div className="grid grid-cols-2 lg:grid-cols-4">
-          {[
-            ["0", ".git folders added next to your files"],
-            ["SHA-256", "verification of every changed file"],
-            ["Private", "repository visibility by default"],
-            ["One lock", "no duplicate run per profile"],
-          ].map(([v, l], i) => (
+          {home.facts.map(([v, l], i) => (
             <div
-              key={v}
+              key={l}
               className={`px-6 py-6 text-center border-black/10 ${i % 2 === 0 ? "border-r" : ""} ${
                 i < 2 ? "border-b lg:border-b-0" : ""
               } ${i === 2 ? "lg:border-r" : ""}`}
@@ -428,12 +288,12 @@ export default function Home() {
           <Cross className="-bottom-[8px] -right-[8px]" />
           <div className="grid lg:grid-cols-2">
             <div className="px-6 md:px-10 py-20 md:py-28 lg:border-r border-black/10">
-              <Kicker>The problem</Kicker>
+              <Kicker>{home.problem.kicker}</Kicker>
               <h2 className="mt-4 font-display text-4xl md:text-5xl font-medium tracking-tight leading-[1.05] text-balance">
-                Manual backups are a quiet liability.
+                {home.problem.title}
               </h2>
               <ul className="mt-10 space-y-4">
-                {PROBLEMS.map((p) => (
+                {home.problem.items.map((p) => (
                   <li
                     key={p}
                     className="flex items-start gap-3 text-[15px] text-[#40463f]"
@@ -450,10 +310,10 @@ export default function Home() {
               <div className="w-full max-w-md mx-auto rounded-xl border border-black/10 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)] overflow-hidden">
                 <div className="px-4 py-3 border-b border-black/8 text-xs font-semibold text-[#6b716b] flex items-center gap-2">
                   <Icon name="folder" size={14} className="text-[#9aa09a]" />
-                  Desktop › Backups (manual)
+                  {home.problem.folderLabel}
                 </div>
                 <div className="divide-y divide-black/5">
-                  {MESSY_FILES.map(([name, date]) => (
+                  {home.problem.files.map(([name, date]) => (
                     <div
                       key={name}
                       className="flex items-center justify-between px-4 py-3 text-[13px]"
@@ -471,7 +331,7 @@ export default function Home() {
                   ))}
                 </div>
                 <div className="px-4 py-3 border-t border-black/8 bg-[#faf9f7] font-display italic text-sm text-[#6b716b]">
-                  Which one is the truth?
+                  {home.problem.question}
                 </div>
               </div>
             </div>
@@ -487,7 +347,7 @@ export default function Home() {
                   <Image
                     className="w-full h-full object-cover object-top"
                     src="/images/nexthive-dashboard.png"
-                    alt="NextHive desktop dashboard showing protected folders and backup profiles"
+                    alt={home.product.imageAlt}
                     width={1176}
                     height={749}
                     quality={100}
@@ -497,17 +357,12 @@ export default function Home() {
               </div>
             </div>
             <div className="order-1 lg:order-2 px-6 md:px-10 py-20 md:py-28">
-              <Kicker>With NextHive</Kicker>
+              <Kicker>{home.product.kicker}</Kicker>
               <h2 className="mt-4 font-display text-4xl md:text-5xl font-medium tracking-tight leading-[1.05] text-balance">
-                The app does the work. You keep the proof.
+                {home.product.title}
               </h2>
               <ul className="mt-10 space-y-4">
-                {[
-                  "Run at 02:00 or on demand — the result is the same dated, readable history",
-                  "Every run becomes a Git commit you can open on any machine",
-                  "Real stages and concrete changes, never an invented percentage",
-                  "One dashboard for what changed, what failed, and what runs next",
-                ].map((p) => (
+                {home.product.items.map((p) => (
                   <li
                     key={p}
                     className="flex items-start gap-3 text-[15px] text-[#40463f]"
@@ -528,25 +383,21 @@ export default function Home() {
           <Cross className="-top-[8px] -left-[8px]" />
           <Cross className="-top-[8px] -right-[8px]" />
           <div className="grid lg:grid-cols-[1.4fr_1fr] gap-8 items-end mb-14">
-            <SectionHead
-              kicker="How it works"
-              title="Set it up once. It keeps the history forever."
-            />
+            <SectionHead kicker={home.how.kicker} title={home.how.title} />
             <p className="text-[15px] text-[#5f665f] leading-relaxed lg:pb-2 max-w-sm">
-              Each profile is a small contract: these folders, this destination,
-              this schedule. NextHive keeps the contract and shows its work.
+              {home.how.copy}
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 border border-black/10 rounded-xl overflow-hidden bg-white">
-            {STEPS.map((step, i) => (
+            {home.how.steps.map((step, i) => (
               <article
                 key={step.number}
                 className={`flex flex-col ${i !== 2 ? "border-b md:border-b-0 md:border-r border-black/10" : ""}`}
               >
                 <div className="p-7 pb-5">
                   <span className="font-grotesk text-[10px] font-semibold tracking-[0.18em] uppercase text-[#9aa09a]">
-                    Step {step.number}
+                    {home.how.stepLabel} {step.number}
                   </span>
                   <h3 className="mt-3 font-display text-2xl font-medium tracking-tight">
                     {step.title}
@@ -558,12 +409,7 @@ export default function Home() {
                 <div className="mt-auto border-t border-black/8 bg-[#faf9f7] p-5 min-h-[150px]">
                   {i === 0 ? (
                     <div className="space-y-2">
-                      {[
-                        ["Documents", true],
-                        ["Projects / clients", true],
-                        ["Design / brand", true],
-                        ["node_modules", false],
-                      ].map(([name, on]) => (
+                      {home.how.folders.map(([name, on]) => (
                         <div
                           key={name}
                           className={`flex items-center gap-2.5 px-3 py-2 rounded-md border text-xs font-medium ${
@@ -590,32 +436,39 @@ export default function Home() {
                   ) : null}
                   {i === 1 ? (
                     <div className="font-mono text-[11px] leading-6 text-[#5f665f]">
-                      <div>metadata compare · 12,402 files · 0.8s</div>
-                      <div>unchanged skipped · 12,365 files</div>
-                      <div className="text-[#177245]">
-                        re-hash changed · 37 files
-                      </div>
-                      <div className="text-[#177245]">
-                        SHA-256 verified · 37 / 37
-                      </div>
-                      <div className="text-[#9aa09a]">
-                        no source file written
-                      </div>
+                      {home.how.scanLog.map((line, index) => (
+                        <div
+                          key={line}
+                          className={
+                            index === 2 || index === 3
+                              ? "text-[#177245]"
+                              : index === 4
+                                ? "text-[#9aa09a]"
+                                : undefined
+                          }
+                        >
+                          {line}
+                        </div>
+                      ))}
                     </div>
                   ) : null}
                   {i === 2 ? (
                     <div className="space-y-2 text-xs">
                       <div className="flex items-center justify-between px-3 py-2 rounded-md border border-black/8 bg-white font-mono text-[11px] text-[#40463f]">
-                        <span>commit 2026-08-08</span>
-                        <span className="text-[#9aa09a]">37 files</span>
+                        <span>{home.how.push.commit}</span>
+                        <span className="text-[#9aa09a]">
+                          {home.how.push.commitNote}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between px-3 py-2 rounded-md border border-black/8 bg-white font-mono text-[11px] text-[#40463f]">
-                        <span>push → nexthive-documents</span>
-                        <span className="text-[#9aa09a]">private</span>
+                        <span>{home.how.push.pushLine}</span>
+                        <span className="text-[#9aa09a]">
+                          {home.how.push.pushNote}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-[#17714a]/25 bg-[#e2f5e8] font-semibold text-[#177245]">
                         <Icon name="check" size={12} strokeWidth={2.5} />{" "}
-                        Confirmed by remote
+                        {home.how.push.confirmed}
                       </div>
                     </div>
                   ) : null}
@@ -629,23 +482,16 @@ export default function Home() {
         <Band>
           <div className="border-b border-black/10 px-6 md:px-10 overflow-x-auto">
             <div className="flex min-w-max">
-              {[
-                "Documents",
-                "Client work",
-                "Design",
-                "Finance",
-                "Photos",
-                "Research",
-              ].map((t, i) => (
+              {home.schedule.tabs.map((tab, i) => (
                 <span
-                  key={t}
+                  key={tab}
                   className={`px-5 py-3.5 text-[13px] font-semibold border-r border-black/10 first:border-l ${
                     i === 0
                       ? "bg-white text-[#101410] shadow-[inset_0_-2px_0_#177245]"
                       : "text-[#8b918b]"
                   }`}
                 >
-                  {t}
+                  {tab}
                 </span>
               ))}
             </div>
@@ -653,62 +499,49 @@ export default function Home() {
           <div className="grid lg:grid-cols-2">
             <div className="px-6 md:px-10 py-20 md:py-24 lg:border-r border-black/10 bg-gradient-to-b from-[#e7efe8] to-[#f3f5f1] flex items-center">
               <div className="w-full max-w-md mx-auto space-y-3">
-                {RUN_FEED.map((run, i) => (
-                  <div
-                    key={`${run.time}-${run.text}`}
-                    className={`flex items-center gap-3 px-4 py-3.5 rounded-lg border bg-white text-[13px] shadow-sm ${
-                      run.ok ? "border-[#17714a]/30" : "border-black/8"
-                    } ${run.muted ? "opacity-60" : ""}`}
-                    style={{ marginLeft: `${i * 10}px` }}
-                  >
-                    <span className="font-mono text-[11px] text-[#9aa09a]">
-                      {run.time}
-                    </span>
-                    <span className="flex-1 font-medium text-[#40463f]">
-                      {run.text}
-                    </span>
-                    {run.chip ? (
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          run.ok
-                            ? "bg-[#e2f5e8] text-[#177245]"
-                            : "bg-black/5 text-[#6b716b]"
-                        }`}
-                      >
-                        {run.chip}
+                {home.schedule.feed.map((run, i) => {
+                  const muted = i === 0;
+                  const ok = i === home.schedule.feed.length - 1;
+                  return (
+                    <div
+                      key={`${run.time}-${run.text}`}
+                      className={`flex items-center gap-3 px-4 py-3.5 rounded-lg border bg-white text-[13px] shadow-sm ${
+                        ok ? "border-[#17714a]/30" : "border-black/8"
+                      } ${muted ? "opacity-60" : ""}`}
+                      style={{ marginLeft: `${i * 10}px` }}
+                    >
+                      <span className="font-mono text-[11px] text-[#9aa09a]">
+                        {run.time}
                       </span>
-                    ) : null}
-                  </div>
-                ))}
+                      <span className="flex-1 font-medium text-[#40463f]">
+                        {run.text}
+                      </span>
+                      {run.chip ? (
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            ok
+                              ? "bg-[#e2f5e8] text-[#177245]"
+                              : "bg-black/5 text-[#6b716b]"
+                          }`}
+                        >
+                          {run.chip}
+                        </span>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             </div>
             <div className="px-6 md:px-10 py-20 md:py-24">
-              <Kicker>Scheduling</Kicker>
+              <Kicker>{home.schedule.kicker}</Kicker>
               <h2 className="mt-4 font-display text-4xl md:text-5xl font-medium tracking-tight leading-[1.05] text-balance">
-                Automate the routine you never remember.
+                {home.schedule.title}
               </h2>
               <p className="mt-5 text-base text-[#5f665f] leading-relaxed max-w-md">
-                Schedules survive sleep and shutdowns: a missed 02:00 run
-                catches up quietly the next time your machine is awake.
+                {home.schedule.copy}
               </p>
               <div className="mt-9 space-y-5">
-                {[
-                  [
-                    "clock",
-                    "Catch-up scheduling",
-                    "Missed 02:00 · caught up at 09:04, no questions asked.",
-                  ],
-                  [
-                    "tray",
-                    "Quiet tray operation",
-                    "Pause or run a backup without opening the app.",
-                  ],
-                  [
-                    "file",
-                    "Visible problem files",
-                    "Retry, or add the exact file to an exclusion profile.",
-                  ],
-                ].map(([icon, title, copy]) => (
+                {home.schedule.features.map(([icon, title, copy]) => (
                   <div key={title} className="flex items-start gap-4">
                     <span className="w-9 h-9 shrink-0 rounded-lg border border-[#17714a]/20 bg-white text-[#17714a] flex items-center justify-center">
                       <Icon name={icon} size={17} />
@@ -730,53 +563,31 @@ export default function Home() {
           <Cross className="-top-[8px] -right-[8px]" />
           <div className="grid lg:grid-cols-[1.4fr_1fr] gap-8 items-end mb-14">
             <SectionHead
-              kicker="Your destination"
-              title="Your account. Your repository. Your history."
+              kicker={home.integrations.kicker}
+              title={home.integrations.title}
             />
             <p className="text-[15px] text-[#5f665f] leading-relaxed lg:pb-2 max-w-sm">
-              Connect personal and work identities, choose an existing private
-              repository, or let NextHive create{" "}
+              {home.integrations.copyBefore}
               <span className="font-mono text-[13px]">
                 nexthive-&lt;profile&gt;
               </span>
-              .
+              {home.integrations.copyAfter}
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <h3 className="font-grotesk text-[11px] font-semibold tracking-[0.16em] uppercase text-[#9aa09a] pb-3 border-b border-black/10 mb-4">
-                Available today
+                {home.integrations.availableHeading}
               </h3>
               <div className="space-y-2.5">
-                {[
-                  [
-                    <FaGithub key="gh" size={18} />,
-                    "GitHub",
-                    "Private repos · LFS built in",
-                  ],
-                  [
-                    <FaGitlab key="gl" size={18} />,
-                    "GitLab",
-                    "GitLab.com or self-managed",
-                  ],
-                  [
-                    <SiGitea key="gt" size={18} />,
-                    "Gitea / Forgejo",
-                    "Your own infrastructure",
-                  ],
-                  [
-                    <SiCodeberg key="cb" size={18} />,
-                    "Codeberg",
-                    "Community-run hosting",
-                  ],
-                ].map(([iconNode, name, note]) => (
+                {home.integrations.available.map(([name, note], i) => (
                   <div
                     key={name}
                     className="flex items-center gap-3 p-3 rounded-lg border border-black/10 bg-white"
                   >
                     <span className="w-9 h-9 shrink-0 rounded-md bg-[#101410] text-white flex items-center justify-center">
-                      {iconNode}
+                      {AVAILABLE_ICONS[i]}
                     </span>
                     <div className="min-w-0">
                       <span className="block text-sm font-semibold">
@@ -796,47 +607,37 @@ export default function Home() {
 
             <div>
               <h3 className="font-grotesk text-[11px] font-semibold tracking-[0.16em] uppercase text-[#9aa09a] pb-3 border-b border-black/10 mb-4">
-                On the way
+                {home.integrations.plannedHeading}
               </h3>
               <div className="space-y-2.5">
-                {[
-                  [<FaGoogleDrive key="gd" size={18} />, "Google Drive"],
-                  [<FaYandex key="yd" size={18} />, "Yandex Disk"],
-                  [<SiMega key="mega" size={18} />, "MEGA"],
-                  [<FaServer key="sf" size={18} />, "SFTP / FTPS"],
-                ].map(([iconNode, name]) => (
+                {home.integrations.planned.map((name, i) => (
                   <div
                     key={name}
                     className="flex items-center gap-3 p-3 rounded-lg border border-black/8 border-dashed bg-white/60"
                   >
                     <span className="w-9 h-9 shrink-0 rounded-md bg-[#e9e8e4] text-[#6b716b] flex items-center justify-center">
-                      {iconNode}
+                      {PLANNED_ICONS[i]}
                     </span>
                     <span className="text-sm font-semibold text-[#6b716b]">
                       {name}
                     </span>
                     <span className="ml-auto px-2 py-0.5 rounded bg-black/5 text-[10px] font-bold text-[#8b918b]">
-                      Planned
+                      {home.integrations.plannedChip}
                     </span>
                   </div>
                 ))}
               </div>
               <p className="mt-3 text-xs text-[#9aa09a]">
-                Shown honestly as planned — not promised dates.
+                {home.integrations.plannedNote}
               </p>
             </div>
 
             <div>
               <h3 className="font-grotesk text-[11px] font-semibold tracking-[0.16em] uppercase text-[#9aa09a] pb-3 border-b border-black/10 mb-4">
-                Every destination gets
+                {home.integrations.everyHeading}
               </h3>
               <div className="space-y-2.5">
-                {[
-                  ["lock", "Token in the OS credential vault"],
-                  ["shield", "Private visibility by default"],
-                  ["key", "Push permission verified up front"],
-                  ["file", "LFS handling for large files"],
-                ].map(([icon, text]) => (
+                {home.integrations.every.map(([icon, text]) => (
                   <div
                     key={text}
                     className="flex items-center gap-3 p-3 rounded-lg border border-[#17714a]/15 bg-[#eef6ef]"
@@ -858,21 +659,15 @@ export default function Home() {
         <Band>
           <div className="grid lg:grid-cols-2">
             <div className="px-6 md:px-10 py-20 md:py-28 lg:border-r border-black/10">
-              <Kicker>Accuracy</Kicker>
+              <Kicker>{home.trust.kicker}</Kicker>
               <h2 className="mt-4 font-display text-4xl md:text-5xl font-medium tracking-tight leading-[1.05] text-balance">
-                Verified, or it does not count as a backup.
+                {home.trust.title}
               </h2>
               <p className="mt-5 text-base text-[#5f665f] leading-relaxed max-w-md">
-                NextHive reports real stages and concrete changes instead of
-                inventing progress it cannot measure — and a run succeeds only
-                after the remote accepts the push.
+                {home.trust.copy}
               </p>
               <ul className="mt-9 space-y-4">
-                {[
-                  "Fast metadata comparison avoids rehashing unchanged files",
-                  "SHA-256 verifies every file that actually changed",
-                  "The dated structure is readable on any machine, without NextHive",
-                ].map((p) => (
+                {home.trust.items.map((p) => (
                   <li
                     key={p}
                     className="flex items-start gap-3 text-[15px] text-[#40463f]"
@@ -894,11 +689,7 @@ export default function Home() {
                 }}
               />
               <div className="relative w-full max-w-md mx-auto space-y-2">
-                {[
-                  ["A", "design/launch-notes.md", "+ 18 KB"],
-                  ["M", "src/features/sync.ts", "SHA verified"],
-                  ["D", "archive/old-draft.pdf", "removed"],
-                ].map(([badge, file, note]) => (
+                {home.trust.diff.map(([badge, file, note]) => (
                   <div
                     key={file}
                     className="flex items-center gap-3 p-3 rounded-md border border-white/8 bg-white/5 font-mono text-xs text-[#dce2ec]"
@@ -917,7 +708,7 @@ export default function Home() {
                     strokeWidth={2.4}
                     className="text-[#75e9a1]"
                   />
-                  Push confirmed by remote — run recorded as successful
+                  {home.trust.confirmed}
                 </div>
               </div>
             </div>
@@ -929,23 +720,23 @@ export default function Home() {
           <div className="grid lg:grid-cols-[1fr_1.6fr] gap-12">
             <div>
               <h2 className="font-display text-5xl md:text-6xl font-medium tracking-tight">
-                FAQs
+                {home.faq.title}
               </h2>
               <p className="mt-5 text-[15px] text-[#5f665f] leading-relaxed max-w-xs">
-                Still have questions? Read the source, or open an issue on{" "}
+                {home.faq.copyBefore}
                 <a
                   href={GITHUB_URL}
                   target="_blank"
                   rel="noreferrer"
                   className="underline underline-offset-2 decoration-black/30 hover:text-[#101410]"
                 >
-                  GitHub
+                  {home.faq.copyLink}
                 </a>
-                .
+                {home.faq.copyAfter}
               </p>
             </div>
             <div className="border-t border-black/10">
-              {FAQS.map((item) => (
+              {home.faq.items.map((item) => (
                 <details
                   key={item.q}
                   className="group border-b border-black/10"
@@ -980,32 +771,25 @@ export default function Home() {
               }}
             />
             <div className="relative text-center max-w-2xl mx-auto">
-              <Kicker dark>Security by boundary</Kicker>
+              <Kicker dark>{home.security.kicker}</Kicker>
               <h2 className="mt-4 font-display text-4xl md:text-5xl font-medium tracking-tight leading-[1.05] text-balance">
-                Secrets stay in Rust. Files stay out of the web layer.
+                {home.security.title}
               </h2>
               <p className="mt-5 text-[#8e9b93] text-base md:text-lg leading-relaxed">
-                The interface can ask for work without gaining broad filesystem
-                access or ever receiving your provider token.
+                {home.security.copy}
               </p>
               <div className="mt-8">
                 <DownloadButton dark />
               </div>
               <p className="mt-8 text-[#6c776e] text-xs max-w-md mx-auto">
-                A private Git repository is access-controlled storage, not
-                end-to-end encrypted storage. NextHive states that boundary
-                clearly.
+                {home.security.note}
               </p>
             </div>
             <div className="relative flex flex-wrap justify-center gap-x-10 gap-y-3 mt-12 pt-8 border-t border-white/10 text-[13px] text-[#aab5ac]">
-              {[
-                "Tokens in the OS credential vault",
-                "Typed Rust commands only",
-                "Private repositories by default",
-                "libgit2 — no shell-built Git",
-              ].map((t) => (
-                <span key={t} className="flex items-center gap-2">
-                  <Icon name="check" size={13} className="text-[#75e9a1]" /> {t}
+              {home.security.badges.map((badge) => (
+                <span key={badge} className="flex items-center gap-2">
+                  <Icon name="check" size={13} className="text-[#75e9a1]" />{" "}
+                  {badge}
                 </span>
               ))}
             </div>
@@ -1018,7 +802,7 @@ export default function Home() {
           innerClassName="px-6 md:px-10 py-24 md:py-32 text-center overflow-hidden"
         >
           <p className="font-grotesk text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9aa09a]">
-            Bytes of your files stored on NextHive servers, to date
+            {home.counter.kicker}
           </p>
           <div
             className="mt-8 flex justify-center items-center gap-1.5 md:gap-2 select-none"
@@ -1044,9 +828,7 @@ export default function Home() {
             )}
           </div>
           <p className="mt-8 text-[15px] text-[#5f665f] max-w-md mx-auto leading-relaxed">
-            Backups travel from your machine straight to repositories you own.
-            The only thing nexthive.app can ever count is an optional, anonymous
-            daily ping — a version number and an OS name, with an off switch.
+            {home.counter.copy}
           </p>
         </Band>
       </main>

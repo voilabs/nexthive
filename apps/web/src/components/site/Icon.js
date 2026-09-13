@@ -6,6 +6,7 @@ const paths = {
     </>
   ),
   check: <path d="m5 12 4 4L19 6" />,
+  chevron: <path d="m6 9 6 6 6-6" />,
   clock: (
     <>
       <circle cx="12" cy="12" r="9" />
@@ -49,6 +50,13 @@ const paths = {
     <>
       <path d="M3 6h6l2 2h10v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
       <path d="M3 10h18" />
+    </>
+  ),
+  globe: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
     </>
   ),
   github: (
