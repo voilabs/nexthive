@@ -4,12 +4,7 @@ import "@fontsource/newsreader/400.css";
 import "@fontsource/newsreader/400-italic.css";
 import "@fontsource/newsreader/500.css";
 import "@/styles/globals.css";
-import { I18nProvider } from "@/i18n";
 
 export default function App({ Component, pageProps }) {
-  return (
-    <I18nProvider>
-      <Component {...pageProps} />
-    </I18nProvider>
-  );
+  return <Component {...pageProps} />;
 }

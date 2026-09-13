@@ -14,6 +14,8 @@
     <img alt="Rust" src="https://img.shields.io/badge/backend-Rust-27272a?style=flat-square&logo=rust&logoColor=white" />
     <img alt="React and TypeScript" src="https://img.shields.io/badge/UI-React%20%2B%20TypeScript-27272a?style=flat-square&logo=react&logoColor=white" />
   </p>
+
+  <p><strong>English</strong> · <a href="README.tr.md">Türkçe</a></p>
 </div>
 
 ![NextHive top banner](docs/top-banner.png)

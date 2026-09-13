@@ -16,6 +16,7 @@ import {
   GhostButton,
   GITHUB_URL,
   Kicker,
+  LocaleAlternates,
   SiteFooter,
   SiteNav,
   VERSION,
@@ -195,6 +196,7 @@ export default function Home() {
         <link rel="shortcut icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/brand/app-icon.png" />
       </Head>
+      <LocaleAlternates />
 
       <a
         className="sr-only focus:not-sr-only focus:fixed focus:z-[100] focus:top-3 focus:left-3 focus:p-3 focus:bg-[#75e9a1] focus:text-[#07110b]"

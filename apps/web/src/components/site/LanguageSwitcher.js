@@ -1,13 +1,20 @@
+import Link from "next/link";
+import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/site/Icon";
-import { DICTIONARIES, LOCALES, useI18n } from "@/i18n";
+import { DICTIONARIES, LOCALE_COOKIE, LOCALES, useI18n } from "@/i18n";
+
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 /*
- * Language dropdown for the site header. Closes on outside click, Escape, or
- * after a choice; the preference itself is stored by the i18n provider.
+ * Language dropdown for the site header. Each option is a real link to the
+ * same page under another locale prefix (`/download` ↔ `/tr/download`), so it
+ * works without JavaScript and is crawlable; the click additionally stores
+ * NEXT_LOCALE so Next.js stops redirecting by Accept-Language afterwards.
  */
 export function LanguageSwitcher({ dark = false }) {
-  const { locale, t, setLocale } = useI18n();
+  const { locale, t } = useI18n();
+  const { asPath } = useRouter();
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
 
@@ -26,6 +33,22 @@ export function LanguageSwitcher({ dark = false }) {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
+
+  function remember(code) {
+    if (window.cookieStore) {
+      window.cookieStore.set({
+        name: LOCALE_COOKIE,
+        value: code,
+        path: "/",
+        expires: Date.now() + COOKIE_MAX_AGE * 1000,
+        sameSite: "lax",
+      });
+    } else {
+      // biome-ignore lint/suspicious/noDocumentCookie: Safari and Firefox have no Cookie Store API
+      document.cookie = `${LOCALE_COOKIE}=${code}; path=/; max-age=${COOKIE_MAX_AGE}; samesite=lax`;
+    }
+    setOpen(false);
+  }
 
   const trigger = dark
     ? "border-white/15 bg-white/5 text-[#e6ece7] hover:border-white/25 hover:bg-white/10"
@@ -60,15 +83,14 @@ export function LanguageSwitcher({ dark = false }) {
           {LOCALES.map((code) => {
             const selected = code === locale;
             return (
-              <button
+              <Link
                 key={code}
-                type="button"
+                href={asPath}
+                locale={code}
+                hrefLang={code}
                 role="menuitemradio"
                 aria-checked={selected}
-                onClick={() => {
-                  setLocale(code);
-                  setOpen(false);
-                }}
+                onClick={() => remember(code)}
                 className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors hover:bg-[#f3f2ee] ${
                   selected
                     ? "font-semibold text-[#17714a]"
@@ -87,7 +109,7 @@ export function LanguageSwitcher({ dark = false }) {
                     className="ml-auto text-[#177245]"
                   />
                 ) : null}
-              </button>
+              </Link>
             );
           })}
         </div>

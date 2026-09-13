@@ -1,5 +1,7 @@
+import Head from "next/head";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { Icon } from "@/components/site/Icon";
 import { LanguageSwitcher } from "@/components/site/LanguageSwitcher";
 import { useI18n } from "@/i18n";
@@ -7,6 +9,26 @@ import { useI18n } from "@/i18n";
 export const VERSION = "0.1.0";
 export const RELEASE_URL = `https://github.com/voilabs/nexthive/releases/download/v${VERSION}/NextHive_${VERSION}_x64-setup.exe`;
 export const GITHUB_URL = "https://github.com/voilabs/nexthive";
+export const SITE_URL = "https://nexthive.app";
+
+/*
+ * Canonical plus hreflang pair for the current page, so each locale URL is
+ * indexed on its own and search engines know they are translations.
+ */
+export function LocaleAlternates() {
+  const { locale } = useI18n();
+  const { asPath } = useRouter();
+  const path = asPath === "/" ? "" : asPath.split("#")[0].split("?")[0];
+  const urls = { en: `${SITE_URL}${path}`, tr: `${SITE_URL}/tr${path}` };
+  return (
+    <Head>
+      <link rel="canonical" href={urls[locale] ?? urls.en} />
+      <link rel="alternate" hrefLang="en" href={urls.en} />
+      <link rel="alternate" hrefLang="tr" href={urls.tr} />
+      <link rel="alternate" hrefLang="x-default" href={urls.en} />
+    </Head>
+  );
+}
 
 export function Brand({ onDark = false, compact = false }) {
   return (
